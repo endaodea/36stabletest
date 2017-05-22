@@ -6,7 +6,7 @@
 !
 !-----------------------------------------------------------------------
 !
-!     CVS:$Id: remap_write.f,v 1.7 2001/08/21 21:06:42 pwjones Exp $
+!     CVS:$Id$
 !
 !     Copyright (c) 1997, 1998 the Regents of the University of 
 !       California.

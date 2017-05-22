@@ -5,7 +5,7 @@
 !
 !-----------------------------------------------------------------------
 !
-!     CVS:$Id: netcdf.f,v 1.2 2000/04/19 21:56:25 pwjones Exp $
+!     CVS:$Id$
 !
 !     Copyright (c) 1997, 1998 the Regents of the University of 
 !       California.

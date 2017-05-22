@@ -35,7 +35,7 @@ MODULE domhgr
 
    !!----------------------------------------------------------------------
    !! NEMO/OPA 4.0 , NEMO Consortium (2011)
-   !! $Id$ 
+   !! $Id$
    !! Software governed by the CeCILL licence     (NEMOGCM/NEMO_CeCILL.txt)
    !!----------------------------------------------------------------------
 CONTAINS

@@ -68,7 +68,7 @@ MODULE p4zsink
 #  include "top_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 3.3 , NEMO Consortium (2010)
-   !! $Id: p4zsink.F90 3160 2011-11-20 14:27:18Z cetlod $ 
+   !! $Id$
    !! Software governed by the CeCILL licence     (NEMOGCM/NEMO_CeCILL.txt)
    !!----------------------------------------------------------------------
 CONTAINS

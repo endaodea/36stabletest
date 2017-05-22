@@ -88,7 +88,7 @@ MODULE sbcblk_clio
 #  include "vectopt_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OPA 4.0 , NEMO Consortium (2011)
-   !! $Id$ 
+   !! $Id$
    !! Software governed by the CeCILL licence     (NEMOGCM/NEMO_CeCILL.txt)
    !!----------------------------------------------------------------------
 CONTAINS

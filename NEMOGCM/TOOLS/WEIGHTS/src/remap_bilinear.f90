@@ -5,7 +5,7 @@
 !
 !-----------------------------------------------------------------------
 !
-!     CVS:$Id: remap_bilinear.f,v 1.6 2001/08/22 18:20:40 pwjones Exp $
+!     CVS:$Id$
 !
 !     Copyright (c) 1997, 1998 the Regents of the University of 
 !       California.

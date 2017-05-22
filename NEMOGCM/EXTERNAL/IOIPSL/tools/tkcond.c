@@ -1,5 +1,5 @@
 /* parser config.in
- * $Id$
+ * $Id: tkcond.c 2281 2010-10-15 14:21:13Z smasson $
  *
  * This software is governed by the CeCILL license
  * See IOIPSL/IOIPSL_License_CeCILL.txt

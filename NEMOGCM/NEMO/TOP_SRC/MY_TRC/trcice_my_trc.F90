@@ -19,7 +19,7 @@ MODULE trcice_my_trc
 
    !!----------------------------------------------------------------------
    !! NEMO/TOP 3.3 , NEMO Consortium (2010)
-   !! $Id: trcice_my_trc.F90 4990 2014-12-15 16:42:49Z timgraham $
+   !! $Id$
    !! Software governed by the CeCILL licence     (NEMOGCM/NEMO_CeCILL.txt)
    !!----------------------------------------------------------------------
 CONTAINS

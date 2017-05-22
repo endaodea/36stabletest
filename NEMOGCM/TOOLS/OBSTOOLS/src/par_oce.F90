@@ -193,7 +193,7 @@ MODULE par_oce
 
    !!----------------------------------------------------------------------
    !! NEMO/OPA 3.3 , NEMO Consortium (2010)
-   !! $Id: par_oce.F90 2715 2011-03-30 15:58:35Z rblod $ 
+   !! $Id$
    !! Software governed by the CeCILL licence (NEMOGCM/NEMO_CeCILL.txt)
    !!======================================================================
 END MODULE par_oce

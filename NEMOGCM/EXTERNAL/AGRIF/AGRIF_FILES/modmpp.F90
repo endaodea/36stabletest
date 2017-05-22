@@ -1,5 +1,5 @@
 !
-! $Id: modmpp.F90 4779 2014-09-19 14:21:37Z rblod $
+! $Id$
 !
 !     AGRIF (Adaptive Grid Refinement In Fortran)
 !

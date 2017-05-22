@@ -46,7 +46,7 @@
 # EVOLUTIONS
 # ==========
 #
-# $Id$
+# $Id: install.sh 2246 2010-10-13 09:47:23Z rblod $
 #
 # - fplod 2008-09-16T15:24:26Z aedon.locean-ipsl.upmc.fr (Darwin)
 #

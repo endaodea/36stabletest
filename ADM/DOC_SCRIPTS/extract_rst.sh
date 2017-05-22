@@ -108,7 +108,7 @@ set -x
 # EVOLUTIONS
 # ==========
 #
-# $Id$
+# $Id: extract_rst.sh 2246 2010-10-13 09:47:23Z rblod $
 #
 # - fplod 2009-04-20T08:13:37Z aedon.locean-ipsl.upmc.fr (Darwin)
 #

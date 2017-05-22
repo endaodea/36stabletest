@@ -9,7 +9,7 @@
 !
 !-----------------------------------------------------------------------
 !
-!     CVS:$Id: remap_conserv.f,v 1.10 2001/08/21 21:05:13 pwjones Exp $
+!     CVS:$Id$
 !
 !     Copyright (c) 1997, 1998 the Regents of the University of 
 !       California.

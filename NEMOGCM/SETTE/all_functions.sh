@@ -78,7 +78,7 @@ set -o posix
 # EVOLUTIONS
 # ==========
 #
-# $Id$
+# $Id: all_functions.sh 6224 2016-01-07 17:02:43Z acc $
 #
 #   * creation
 #-

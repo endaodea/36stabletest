@@ -40,7 +40,7 @@ MODULE bdydyn
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OPA 3.3 , NEMO Consortium (2010)
-   !! $Id$ 
+   !! $Id$
    !! Software governed by the CeCILL licence (NEMOGCM/NEMO_CeCILL.txt)
    !!----------------------------------------------------------------------
 CONTAINS

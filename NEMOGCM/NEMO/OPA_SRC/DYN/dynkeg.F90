@@ -38,7 +38,7 @@ MODULE dynkeg
 #  include "vectopt_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OPA 3.6 , NEMO Consortium (2015)
-   !! $Id$ 
+   !! $Id$
    !! Software governed by the CeCILL licence     (NEMOGCM/NEMO_CeCILL.txt)
    !!----------------------------------------------------------------------
 CONTAINS

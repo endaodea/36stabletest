@@ -39,7 +39,7 @@ MODULE limctl
 #  include "vectopt_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/LIM3 4.0 , UCL - NEMO Consortium (2011)
-   !! $Id: limctl.F90 5043 2015-01-28 16:44:18Z clem $
+   !! $Id$
    !! Software governed by the CeCILL licence     (NEMOGCM/NEMO_CeCILL.txt)
    !!----------------------------------------------------------------------
 

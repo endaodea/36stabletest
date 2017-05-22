@@ -48,7 +48,7 @@ MODULE p4zsms
 #  include "top_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 3.3 , NEMO Consortium (2010)
-   !! $Id: p4zsms.F90 3320 2012-03-05 16:37:52Z cetlod $ 
+   !! $Id$
    !! Software governed by the CeCILL licence (NEMOGCM/NEMO_CeCILL.txt)
    !!----------------------------------------------------------------------
 

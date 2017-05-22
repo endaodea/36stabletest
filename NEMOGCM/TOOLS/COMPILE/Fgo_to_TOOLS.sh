@@ -44,7 +44,7 @@ set -o posix
 # EVOLUTIONS
 # ==========
 #
-# $Id$
+# $Id: Fgo_to_TOOLS.sh 3294 2012-01-28 16:44:18Z rblod $
 #
 #
 #

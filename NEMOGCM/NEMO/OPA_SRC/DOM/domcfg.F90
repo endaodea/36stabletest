@@ -25,7 +25,7 @@ MODULE domcfg
 
    !!----------------------------------------------------------------------
    !! NEMO/OPA 3.2 , LODYC-IPSL  (2009)
-   !! $Id$ 
+   !! $Id$
    !! Software governed by the CeCILL licence     (NEMOGCM/NEMO_CeCILL.txt)
    !!----------------------------------------------------------------------
 CONTAINS

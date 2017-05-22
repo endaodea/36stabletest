@@ -7,7 +7,7 @@
 !
 !-----------------------------------------------------------------------
 !
-!     CVS:$Id: grids.f,v 1.6 2001/08/21 21:06:41 pwjones Exp $
+!     CVS:$Id$
 !
 !     Copyright (c) 1997, 1998 the Regents of the University of 
 !       California.

@@ -5,7 +5,7 @@
 !
 !-----------------------------------------------------------------------
 !
-!     CVS:$Id: remap_bicubic.f,v 1.5 2001/08/22 18:20:41 pwjones Exp $
+!     CVS:$Id$
 !
 !     Copyright (c) 1997, 1998 the Regents of the University of 
 !       California.

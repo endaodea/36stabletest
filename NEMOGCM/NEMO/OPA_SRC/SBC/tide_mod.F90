@@ -34,7 +34,7 @@ MODULE tide_mod
 
    !!----------------------------------------------------------------------
    !! NEMO/OPA 3.3 , LOCEAN-IPSL (2010) 
-   !! $Id$ 
+   !! $Id$
    !! Software governed by the CeCILL licence (modipsl/doc/NEMO_CeCILL.txt)
    !!----------------------------------------------------------------------
 CONTAINS

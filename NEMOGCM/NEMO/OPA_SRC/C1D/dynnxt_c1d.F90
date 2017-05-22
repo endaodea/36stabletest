@@ -24,7 +24,7 @@ MODULE dynnxt_c1d
    PUBLIC dyn_nxt_c1d                ! routine called by step.F90
    !!----------------------------------------------------------------------
    !! NEMO/C1D 3.3 , NEMO Consortium (2010)
-   !! $Id$ 
+   !! $Id$
    !! Software governed by the CeCILL licence     (NEMOGCM/NEMO_CeCILL.txt)
    !!----------------------------------------------------------------------
 CONTAINS

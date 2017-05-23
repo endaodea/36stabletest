@@ -57,6 +57,7 @@ MODULE tranxt
    PUBLIC   tra_nxt_vvl   ! to be used in trcnxt
 
    REAL(wp) ::   rbcp   ! Brown & Campana parameters for semi-implicit hpg
+   INTEGER  ::   warn_1, warn_2   ! indicators for warning statement
 
    !! * Substitutions
 #  include "domzgr_substitute.h90"
@@ -92,8 +93,8 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) ::   kt    ! ocean time-step index
       !!
-      INTEGER  ::   jk, jn    ! dummy loop indices
-      REAL(wp) ::   zfact     ! local scalars
+      INTEGER  ::   jk, jn, ji, jj     ! dummy loop indices
+      REAL(wp) ::   zfact, zfreeze     ! local scalars
       REAL(wp), POINTER, DIMENSION(:,:,:) ::  ztrdt, ztrds
       !!----------------------------------------------------------------------
       !
@@ -119,7 +120,36 @@ CONTAINS
 #if defined key_bdy 
       IF( lk_bdy )   CALL bdy_tra( kt )  ! BDY open boundaries
 #endif
- 
+
+#if ( ! defined key_lim3 && ! defined key_lim2 && ! key_cice )
+      IF ( kt == nit000 ) warn_1=0
+      warn_2=0
+      DO jk = 1, jpkm1
+         DO jj = 1, jpj
+            DO ji = 1, jpi
+               IF ( tsa(ji,jj,jk,jp_tem) .lt. 0.0 ) THEN
+                  ! calculate freezing point
+                  zfreeze = ( -0.0575_wp + 1.710523E-3 * Sqrt(Abs(tsn(ji,jj,jk,jp_sal)))   & 
+                            - 2.154996E-4 * tsn(ji,jj,jk,jp_sal) ) * tsn(ji,jj,jk,jp_sal) - 7.53E-4 * ( 10.0_wp + fsdept(ji,jj,jk) )
+                  IF ( tsa(ji,jj,jk,jp_tem) .lt. zfreeze ) THEN
+                     tsa(ji,jj,jk,jp_tem)=zfreeze
+                     warn_2=1
+                  ENDIF
+               ENDIF
+            END DO
+         END DO
+      END DO
+      CALL mpp_max(warn_1)
+      CALL mpp_max(warn_2)
+      IF ( (warn_1 == 0) .and. (warn_2 /= 0) ) THEN
+         IF(lwp) THEN
+            CALL ctl_warn( ' Temperatures dropping below freezing point, ', &
+                      &    ' being forced to freezing point, no longer conservative' ) 
+         ENDIF
+         warn_1=1
+      ENDIF
+#endif
+
       ! set time step size (Euler/Leapfrog)
       IF( neuler == 0 .AND. kt == nit000 ) THEN   ;   r2dtra(:) =     rdttra(:)      ! at nit000             (Euler)
       ELSEIF( kt <= nit000 + 1 )           THEN   ;   r2dtra(:) = 2._wp* rdttra(:)      ! at nit000 or nit000+1 (Leapfrog)

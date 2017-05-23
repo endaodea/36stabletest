@@ -26,6 +26,8 @@ MODULE trc_oce
    REAL(wp), PUBLIC                                      ::   r_si2         !: largest depth of extinction (blue & 0.01 mg.m-3)  (RGB)
    REAL(wp), PUBLIC, SAVE, ALLOCATABLE, DIMENSION(:,:,:) ::   etot3         !: light absortion coefficient
    REAL(wp), PUBLIC, SAVE, ALLOCATABLE, DIMENSION(:,:,:) ::   facvol        !: volume for degraded regions
+   REAL(wp), PUBLIC, SAVE, ALLOCATABLE, DIMENSION(:,:)   ::   rlambda2      !: Lambda2 for downwell version of Short wave Radiation
+   REAL(wp), PUBLIC                                      ::   rlambda       !: Lambda  for downwell version of Short wave Radiation
 
 #if defined key_top 
    !!----------------------------------------------------------------------
@@ -77,14 +79,16 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                  ***  trc_oce_alloc  ***
       !!----------------------------------------------------------------------
-      INTEGER ::   ierr(2)        ! Local variables
+      INTEGER ::   ierr(3)        ! Local variables
       !!----------------------------------------------------------------------
       ierr(:) = 0
                      ALLOCATE( etot3 (jpi,jpj,jpk), STAT=ierr(1) )
       IF( lk_degrad) ALLOCATE( facvol(jpi,jpj,jpk), STAT=ierr(2) )
+                    ALLOCATE( rlambda2(jpi,jpj),   STAT=ierr(3) )
       trc_oce_alloc  = MAXVAL( ierr )
       !
       IF( trc_oce_alloc /= 0 )   CALL ctl_warn('trc_oce_alloc: failed to allocate etot3 array')
+      IF( trc_oce_alloc /= 0 )   CALL ctl_warn('trc_oce_alloc: failed to allocate etot3, facvol or rlambda2 array')
    END FUNCTION trc_oce_alloc
 
 

@@ -212,6 +212,14 @@ CONTAINS
              IF(lwp) WRITE(numout,*) '      Specified value'
              dta_bdy(ib_bdy)%ll_u3d = .true.
              dta_bdy(ib_bdy)%ll_v3d = .true.
+          CASE('neumann') 
+             IF(lwp) WRITE(numout,*) '      Neumann conditions' 
+             dta_bdy(ib_bdy)%ll_u3d = .false. 
+             dta_bdy(ib_bdy)%ll_v3d = .false. 
+          CASE('zerograd') 
+             IF(lwp) WRITE(numout,*) '      Zero gradient for baroclinic velocities' 
+             dta_bdy(ib_bdy)%ll_u3d = .false. 
+             dta_bdy(ib_bdy)%ll_v3d = .false.
           CASE('zero')
              IF(lwp) WRITE(numout,*) '      Zero baroclinic velocities (runoff case)'
              dta_bdy(ib_bdy)%ll_u3d = .false.
@@ -1086,7 +1094,9 @@ CONTAINS
          DO igrd = 1, jpbgrd
             DO ib = 1, idx_bdy(ib_bdy)%nblen(igrd)
                nbr => idx_bdy(ib_bdy)%nbr(ib,igrd)
-               idx_bdy(ib_bdy)%nbw(ib,igrd) = 1.- TANH( FLOAT( nbr - 1 ) *0.5 )      ! tanh formulation
+               idx_bdy(ib_bdy)%nbw(ib,igrd) = 1.- TANH( FLOAT( nbr - 1 ) * 0.5 &
+                                            &  *(10./ FLOAT(nn_rimwidth(ib_bdy))) ) ! JGraham:modified for rim=15
+!               idx_bdy(ib_bdy)%nbw(ib,igrd) = 1.- TANH( FLOAT( nbr - 1 ) *0.5 )      ! tanh formulation
 !               idx_bdy(ib_bdy)%nbw(ib,igrd) = (FLOAT(nn_rimwidth(ib_bdy)+1-nbr)/FLOAT(nn_rimwidth(ib_bdy)))**2.  ! quadratic
 !               idx_bdy(ib_bdy)%nbw(ib,igrd) =  FLOAT(nn_rimwidth(ib_bdy)+1-nbr)/FLOAT(nn_rimwidth(ib_bdy))       ! linear
             END DO

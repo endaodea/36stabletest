@@ -17,8 +17,10 @@ MODULE icbrst
    !!   icb_rst_write   : write restart file
    !!----------------------------------------------------------------------
    USE par_oce        ! NEMO parameters
+   USE phycst         ! for rday
    USE dom_oce        ! NEMO domain
    USE in_out_manager ! NEMO IO routines
+   USE ioipsl, ONLY : ju2ymds    ! for calendar
    USE lib_mpp        ! NEMO MPI library, lk_mpp in particular
    USE netcdf         ! netcdf routines for IO
    USE icb_oce        ! define iceberg arrays
@@ -230,8 +232,12 @@ CONTAINS
       !
       INTEGER ::   jn   ! dummy loop index
       INTEGER ::   ix_dim, iy_dim, ik_dim, in_dim
-      CHARACTER(len=256)     :: cl_path
-      CHARACTER(len=256)     :: cl_filename
+      INTEGER             ::   iyear, imonth, iday
+      REAL (wp)           ::   zsec
+      REAL (wp)           ::   zfjulday
+      CHARACTER(len=256)  :: cl_path
+      CHARACTER(len=256)  :: cl_filename
+      CHARACTER(LEN=20)   ::   clkt     ! ocean time-step deine as a character
       TYPE(iceberg), POINTER :: this
       TYPE(point)  , POINTER :: pt
       !!----------------------------------------------------------------------
@@ -239,10 +245,20 @@ CONTAINS
       ! Assume we write iceberg restarts to same directory as ocean restarts.
       cl_path = TRIM(cn_ocerst_outdir)
       IF( cl_path(LEN_TRIM(cl_path):) /= '/' ) cl_path = TRIM(cl_path) // '/'
-      IF( lk_mpp ) THEN
-         WRITE(cl_filename,'(A,"_icebergs_",I8.8,"_restart_",I4.4,".nc")') TRIM(cexper), kt, narea-1
+      IF ( ln_rstdate ) THEN
+         zfjulday = fjulday + rdttra(1) / rday
+         IF( ABS(zfjulday - REAL(NINT(zfjulday),wp)) < 0.1 / rday )   zfjulday = REAL(NINT(zfjulday),wp)   ! avoid truncation error
+         CALL ju2ymds( zfjulday, iyear, imonth, iday, zsec )           
+         WRITE(clkt, '(i4.4,2i2.2)') iyear, imonth, iday
       ELSE
-         WRITE(cl_filename,'(A,"_icebergs_",I8.8,"_restart.nc")') TRIM(cexper), kt
+         IF( kt > 999999999 ) THEN   ;   WRITE(clkt, *       ) kt
+         ELSE                        ;   WRITE(clkt, '(i8.8)') kt
+         ENDIF
+      ENDIF
+      IF( lk_mpp ) THEN
+         WRITE(cl_filename,'(A,"_icebergs_",A,"_restart_",I4.4,".nc")') TRIM(cexper), TRIM(ADJUSTL(clkt)), narea-1
+      ELSE
+         WRITE(cl_filename,'(A,"_icebergs_",A,"_restart.nc")') TRIM(cexper), TRIM(ADJUSTL(clkt))
       ENDIF
       IF (nn_verbose_level >= 0) WRITE(numout,'(2a)') 'icebergs, write_restart: creating ',TRIM(cl_path)//TRIM(cl_filename)
 

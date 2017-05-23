@@ -120,6 +120,9 @@ MODULE sbc_oce
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   tprecip           !: total precipitation                          [Kg/m2/s]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   sprecip           !: solid precipitation                          [Kg/m2/s]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   fr_i              !: ice fraction = 1 - lead fraction      (between 0 to 1)
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   pressnow          !: UKMO SHELF pressure
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   apgu              !: UKMO SHELF pressure forcing
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   apgv              !: UKMO SHELF pressure forcing
 #if defined key_cpl_carbon_cycle
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   atm_co2           !: atmospheric pCO2                             [ppm]
 #endif
@@ -170,6 +173,7 @@ CONTAINS
          &      atm_co2(jpi,jpj) ,                                        &
 #endif
          &      ssu_m  (jpi,jpj) , sst_m(jpi,jpj) , frq_m(jpi,jpj) ,      &
+         &      pressnow(jpi,jpj), apgu(jpi,jpj)    , apgv(jpi,jpj) ,     &
          &      ssv_m  (jpi,jpj) , sss_m(jpi,jpj) , ssh_m(jpi,jpj) , STAT=ierr(4) )
          !
 #if defined key_vvl

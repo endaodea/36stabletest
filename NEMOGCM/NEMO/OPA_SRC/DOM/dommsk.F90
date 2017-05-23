@@ -30,6 +30,7 @@ MODULE dommsk
    USE dynspg_oce      ! choice/control of key cpp for surface pressure gradient
    USE wrk_nemo        ! Memory allocation
    USE timing          ! Timing
+   USE iom    ! slwa
 
    IMPLICIT NONE
    PRIVATE

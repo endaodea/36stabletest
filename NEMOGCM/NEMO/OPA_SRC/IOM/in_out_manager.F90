@@ -29,6 +29,7 @@ MODULE in_out_manager
    CHARACTER(lc) ::   cn_ocerst_out    !: suffix of ocean restart name (output)
    CHARACTER(lc) ::   cn_ocerst_outdir !: restart output directory
    LOGICAL       ::   ln_rstart        !: start from (F) rest or (T) a restart file
+   LOGICAL       ::   ln_rstdate       !: datestamping of restarts 
    LOGICAL       ::   ln_rst_list      !: output restarts at list of times (T) or by frequency (F)
    INTEGER       ::   nn_no            !: job number
    INTEGER       ::   nn_rstctl        !: control of the time step (0, 1 or 2)

@@ -135,7 +135,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       USE ioipsl
       NAMELIST/namrun/ cn_ocerst_indir, cn_ocerst_outdir, nn_stocklist, ln_rst_list,               &
-         &             nn_no   , cn_exp    , cn_ocerst_in, cn_ocerst_out, ln_rstart , nn_rstctl,   &
+         &             nn_no   , cn_exp    , cn_ocerst_in, cn_ocerst_out, ln_rstdate, ln_rstart , nn_rstctl,   &
          &             nn_it000, nn_itend  , nn_date0    , nn_leapy     , nn_istate , nn_stock ,   &
          &             nn_write, ln_dimgnnn, ln_mskland  , ln_cfmeta    , ln_clobber, nn_chunksz, nn_euler
       NAMELIST/namdom/ nn_bathy, rn_bathy , rn_e3zps_min, rn_e3zps_rat, nn_msh, rn_hmin,   &
@@ -173,6 +173,7 @@ CONTAINS
          WRITE(numout,*) '      file prefix restart output      cn_ocerst_out= ', cn_ocerst_out
          WRITE(numout,*) '      restart output directory        cn_ocerst_outdir= ', cn_ocerst_outdir
          WRITE(numout,*) '      restart logical                 ln_rstart  = ', ln_rstart
+         WRITE(numout,*) '      datestamping of restarts        ln_rstdate  = ', ln_rstdate
          WRITE(numout,*) '      start with forward time step    nn_euler   = ', nn_euler
          WRITE(numout,*) '      control of time step            nn_rstctl  = ', nn_rstctl
          WRITE(numout,*) '      number of the first time step   nn_it000   = ', nn_it000

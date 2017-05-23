@@ -27,13 +27,16 @@ MODULE sbcflx
 
    PUBLIC sbc_flx       ! routine called by step.F90
 
-   INTEGER , PARAMETER ::   jpfld   = 5   ! maximum number of files to read 
+   INTEGER , PARAMETER ::   jpfld   = 6   ! maximum number of files to read 
    INTEGER , PARAMETER ::   jp_utau = 1   ! index of wind stress (i-component) file
    INTEGER , PARAMETER ::   jp_vtau = 2   ! index of wind stress (j-component) file
    INTEGER , PARAMETER ::   jp_qtot = 3   ! index of total (non solar+solar) heat file
    INTEGER , PARAMETER ::   jp_qsr  = 4   ! index of solar heat file
    INTEGER , PARAMETER ::   jp_emp  = 5   ! index of evaporation-precipation file
+   INTEGER , PARAMETER ::   jp_press = 6  ! index of pressure for UKMO shelf fluxes
    TYPE(FLD), ALLOCATABLE, DIMENSION(:) ::   sf    ! structure of input fields (file informations, fields read)
+   LOGICAL , PUBLIC    ::   ln_shelf_flx = .FALSE. ! UKMO SHELF specific flux flag
+   INTEGER             ::   jpfld_local   ! maximum number of files to read (locally modified depending on ln_shelf_flx) 
 
    !! * Substitutions
 #  include "domzgr_substitute.h90"
@@ -81,11 +84,18 @@ CONTAINS
       REAL(wp) ::   zrhoa  = 1.22         ! Air density kg/m3
       REAL(wp) ::   zcdrag = 1.5e-3       ! drag coefficient
       REAL(wp) ::   ztx, zty, zmod, zcoef ! temporary variables
+      REAL     ::   cs                    ! UKMO SHELF: Friction co-efficient at surface
+      REAL     ::   totwindspd            ! UKMO SHELF: Magnitude of wind speed vector
+
+      REAL(wp) ::   rhoa  = 1.22         ! Air density kg/m3
+      REAL(wp) ::   cdrag = 1.5e-3       ! drag coefficient 
       !!
       CHARACTER(len=100) ::  cn_dir                               ! Root directory for location of flx files
       TYPE(FLD_N), DIMENSION(jpfld) ::   slf_i                    ! array of namelist information structures
-      TYPE(FLD_N) ::   sn_utau, sn_vtau, sn_qtot, sn_qsr, sn_emp  ! informations about the fields to be read
-      NAMELIST/namsbc_flx/ cn_dir, sn_utau, sn_vtau, sn_qtot, sn_qsr, sn_emp
+      TYPE(FLD_N) ::   sn_utau, sn_vtau, sn_qtot, sn_qsr, sn_emp, sn_press  !  informations about the fields to be read
+      LOGICAL     ::   ln_foam_flx  = .FALSE.                     ! UKMO FOAM specific flux flag
+      NAMELIST/namsbc_flx/ cn_dir, sn_utau, sn_vtau, sn_qtot, sn_qsr, sn_emp,   &
+      &                    ln_foam_flx, sn_press, ln_shelf_flx
       !!---------------------------------------------------------------------
       !
       IF( kt == nit000 ) THEN                ! First call kt=nit000  
@@ -108,11 +118,20 @@ CONTAINS
          slf_i(jp_qtot) = sn_qtot   ;   slf_i(jp_qsr ) = sn_qsr 
          slf_i(jp_emp ) = sn_emp
          !
-         ALLOCATE( sf(jpfld), STAT=ierror )        ! set sf structure
+            ALLOCATE( sf(jpfld), STAT=ierror )        ! set sf structure
+            IF( ln_shelf_flx ) slf_i(jp_press) = sn_press
+   
+            ! define local jpfld depending on shelf_flx logical
+            IF( ln_shelf_flx ) THEN
+               jpfld_local = jpfld
+            ELSE
+               jpfld_local = jpfld-1
+            ENDIF
+            !
          IF( ierror > 0 ) THEN   
             CALL ctl_stop( 'sbc_flx: unable to allocate sf structure' )   ;   RETURN  
          ENDIF
-         DO ji= 1, jpfld
+         DO ji= 1, jpfld_local
             ALLOCATE( sf(ji)%fnow(jpi,jpj,1) )
             IF( slf_i(ji)%ln_tint ) ALLOCATE( sf(ji)%fdta(jpi,jpj,1,2) )
          END DO
@@ -131,17 +150,53 @@ CONTAINS
          ELSE                  ;   qsr(:,:) =          sf(jp_qsr)%fnow(:,:,1)
          ENDIF
 !CDIR COLLAPSE
+            !!UKMO SHELF effect of atmospheric pressure on SSH
+            ! If using ln_apr_dyn, this is done there so don't repeat here.
+            IF( ln_shelf_flx .AND. .NOT. ln_apr_dyn) THEN
+               DO jj = 1, jpjm1
+                  DO ji = 1, jpim1
+                     apgu(ji,jj) = (-1.0/rau0)*(sf(jp_press)%fnow(ji+1,jj,1)-sf(jp_press)%fnow(ji,jj,1))/e1u(ji,jj)
+                     apgv(ji,jj) = (-1.0/rau0)*(sf(jp_press)%fnow(ji,jj+1,1)-sf(jp_press)%fnow(ji,jj,1))/e2v(ji,jj)
+                  END DO
+               END DO
+            ENDIF ! ln_shelf_flx
+      
          DO jj = 1, jpj                                           ! set the ocean fluxes from read fields
             DO ji = 1, jpi
-               utau(ji,jj) = sf(jp_utau)%fnow(ji,jj,1)
-               vtau(ji,jj) = sf(jp_vtau)%fnow(ji,jj,1)
-               qns (ji,jj) = sf(jp_qtot)%fnow(ji,jj,1) - sf(jp_qsr)%fnow(ji,jj,1)
-               emp (ji,jj) = sf(jp_emp )%fnow(ji,jj,1)
+                   IF( ln_shelf_flx ) THEN
+                      !! UKMO SHELF - need atmospheric pressure to calculate Haney forcing
+                      pressnow(ji,jj) = sf(jp_press)%fnow(ji,jj,1)
+                      !! UKMO SHELF flux files contain wind speed not wind stress
+                      totwindspd = sqrt((sf(jp_utau)%fnow(ji,jj,1))**2.0 + (sf(jp_vtau)%fnow(ji,jj,1))**2.0)
+                      cs = 0.63 + (0.066 * totwindspd)
+                      utau(ji,jj) = cs * (rhoa/rau0) * sf(jp_utau)%fnow(ji,jj,1) * totwindspd
+                      vtau(ji,jj) = cs * (rhoa/rau0) * sf(jp_vtau)%fnow(ji,jj,1) * totwindspd
+                   ELSE
+                      utau(ji,jj) = sf(jp_utau)%fnow(ji,jj,1)
+                      vtau(ji,jj) = sf(jp_vtau)%fnow(ji,jj,1)
+                   ENDIF
+                   qsr (ji,jj) = sf(jp_qsr )%fnow(ji,jj,1)
+                   IF( ln_foam_flx .OR. ln_shelf_flx ) THEN
+                      !! UKMO FOAM flux files contain non-solar heat flux (qns) rather than total heat flux (qtot)
+                      qns (ji,jj) = sf(jp_qtot)%fnow(ji,jj,1)
+                      !! UKMO FOAM flux files contain the net DOWNWARD freshwater flux P-E rather then E-P
+                      emp (ji,jj) = -1. * sf(jp_emp )%fnow(ji,jj,1)
+                   ELSE
+                      qns (ji,jj) = sf(jp_qtot)%fnow(ji,jj,1) - sf(jp_qsr)%fnow(ji,jj,1)
+                      emp (ji,jj) = sf(jp_emp )%fnow(ji,jj,1)
+                   ENDIF
             END DO
          END DO
          !                                                        ! add to qns the heat due to e-p
          qns(:,:) = qns(:,:) - emp(:,:) * sst_m(:,:) * rcp        ! mass flux is at SST
          !
+   
+            !! UKMO FOAM wind fluxes need lbc_lnk calls owing to a bug in interp.exe
+            IF( ln_foam_flx ) THEN
+               CALL lbc_lnk( utau(:,:), 'U', -1. )
+               CALL lbc_lnk( vtau(:,:), 'V', -1. )
+            ENDIF
+    
          !                                                        ! module of wind stress and wind speed at T-point
          zcoef = 1. / ( zrhoa * zcdrag )
 !CDIR NOVERRCHK
@@ -161,7 +216,7 @@ CONTAINS
          IF( nitend-nit000 <= 100 .AND. lwp ) THEN                ! control print (if less than 100 time-step asked)
             WRITE(numout,*) 
             WRITE(numout,*) '        read daily momentum, heat and freshwater fluxes OK'
-            DO jf = 1, jpfld
+            DO jf = 1, jpfld_local
                IF( jf == jp_utau .OR. jf == jp_vtau )   zfact =     1.
                IF( jf == jp_qtot .OR. jf == jp_qsr  )   zfact =     0.1
                IF( jf == jp_emp                     )   zfact = 86400.

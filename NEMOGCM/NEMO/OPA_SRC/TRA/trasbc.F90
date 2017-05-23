@@ -24,6 +24,7 @@ MODULE trasbc
    USE traqsr          ! solar radiation penetration
    USE trd_oce         ! trends: ocean variables
    USE trdtra          ! trends manager: tracers 
+   USE tradwl          ! solar radiation penetration (downwell method)
    !
    USE in_out_manager  ! I/O manager
    USE prtctl          ! Print control
@@ -137,7 +138,7 @@ CONTAINS
       ENDIF
 
 !!gm      IF( .NOT.ln_traqsr )   qsr(:,:) = 0.e0   ! no solar radiation penetration
-      IF( .NOT.ln_traqsr ) THEN     ! no solar radiation penetration
+      IF( .NOT.ln_traqsr .and. .NOT.ln_tradwl ) THEN     ! no solar radiation penetration
          qns(:,:) = qns(:,:) + qsr(:,:)      ! total heat flux in qns
          qsr(:,:) = 0.e0                     ! qsr set to zero
       ENDIF

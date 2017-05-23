@@ -43,9 +43,13 @@ MODULE diawri
    USE lbclnk          ! ocean lateral boundary conditions (or mpp link)
    USE in_out_manager  ! I/O manager
    USE diadimg         ! dimg direct access file format output
+   USE diatmb          ! Top,middle,bottom output
+   USE dia25h          ! 25h Mean output
    USE iom
    USE ioipsl
    USE dynspg_oce, ONLY: un_adv, vn_adv ! barotropic velocities     
+   USE eosbn2         ! equation of state                (eos_bn2 routine)
+
 
 #if defined key_lim2
    USE limwri_2 
@@ -131,12 +135,14 @@ CONTAINS
       !!
       REAL(wp), POINTER, DIMENSION(:,:)   :: z2d      ! 2D workspace
       REAL(wp), POINTER, DIMENSION(:,:,:) :: z3d      ! 3D workspace
+      REAL(wp), POINTER, DIMENSION(:,:,:) :: zrhd , zrhop  ! 3D workspace
       !!----------------------------------------------------------------------
       ! 
       IF( nn_timing == 1 )   CALL timing_start('dia_wri')
       ! 
       CALL wrk_alloc( jpi , jpj      , z2d )
       CALL wrk_alloc( jpi , jpj, jpk , z3d )
+      CALL wrk_alloc( jpi , jpj, jpk , zrhd , zrhop )
       !
       ! Output the initial state and forcings
       IF( ninist == 1 ) THEN                       
@@ -375,9 +381,26 @@ CONTAINS
          CALL lbc_lnk( z2d, 'V', -1. )
          CALL iom_put( "v_salttr", 0.5 * z2d )            !  heat transport in j-direction
       ENDIF
+
+      IF( iom_use("rhop") ) THEN
+         CALL eos( tsn, zrhd, zrhop, fsdept_n(:,:,:) )       ! now in situ and potential density
+         zrhop(:,:,jpk) = 0._wp
+         CALL iom_put( 'rhop', zrhop )
+      ENDIF
+
       !
       CALL wrk_dealloc( jpi , jpj      , z2d )
       CALL wrk_dealloc( jpi , jpj, jpk , z3d )
+      CALL wrk_dealloc( jpi , jpj, jpk , zrhd , zrhop )
+      !
+      ! If we want tmb values 
+
+      IF (ln_diatmb) THEN
+         CALL dia_tmb
+      ENDIF
+      IF (ln_dia25h) THEN
+         CALL dia_25h( kt )
+      ENDIF
       !
       IF( nn_timing == 1 )   CALL timing_stop('dia_wri')
       !

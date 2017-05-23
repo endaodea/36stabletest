@@ -24,11 +24,13 @@ MODULE step_oce
    USE sbcmod           ! surface boundary condition       (sbc     routine)
    USE sbcrnf           ! surface boundary condition: runoff variables
    USE sbccpl           ! surface boundary condition: coupled formulation (call send at end of step)
+   USE sbcflx           ! surface boundary condition: Fluxes
    USE sbc_oce          ! surface boundary condition: ocean
    USE sbctide          ! Tide initialisation
    USE sbcapr           ! surface boundary condition: ssh_ib required by bdydta 
 
    USE traqsr           ! solar radiation penetration      (tra_qsr routine)
+   USE tradwl           ! POLCOMS style solar radiation    (tra_dwl routine) 
    USE trasbc           ! surface boundary condition       (tra_sbc routine)
    USE trabbc           ! bottom boundary condition        (tra_bbc routine)
    USE trabbl           ! bottom boundary layer            (tra_bbl routine)
@@ -105,6 +107,8 @@ MODULE step_oce
    USE stpctl           ! time stepping control            (stp_ctl routine)
    USE prtctl           ! Print control                    (prt_ctl routine)
 
+   USE harmonic_analysis ! harmonic analysis of tides (harm_ana routine) 
+   USE bdytides          ! harmonic analysis of tides (harm_ana routine) 
    USE diaobs           ! Observation operator
 
    USE timing           ! Timing

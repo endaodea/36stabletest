@@ -49,6 +49,11 @@ MODULE bdytides
       REAL(wp), POINTER, DIMENSION(:,:,:)    ::   u          !: Tidal constituents : U    (after nodal cor.)
       REAL(wp), POINTER, DIMENSION(:,:,:)    ::   v          !: Tidal constituents : V    (after nodal cor.)
    END TYPE TIDES_DATA
+   INTEGER, PUBLIC, PARAMETER                  ::   jptides_max = 15      !: Max number of tidal contituents
+      LOGICAL, PUBLIC                           ::   ln_harm_ana_store    !: =T Stores data for  harmonic Analysis
+      LOGICAL, PUBLIC                           ::   ln_harm_ana_compute     !: =T  Compute harmonic Analysis
+      LOGICAL, PUBLIC                           ::   ln_harmana_read         !: =T  Decide to do the analysis 
+                                                                             !from scratch or continue previous run
 
 !$AGRIF_DO_NOT_TREAT
    TYPE(TIDES_DATA), PUBLIC, DIMENSION(jp_bdy), TARGET :: tides  !: External tidal harmonics data
@@ -89,7 +94,7 @@ CONTAINS
       TYPE(TIDES_DATA),  POINTER                ::   td                  !: local short cut   
       TYPE(MAP_POINTER), DIMENSION(jpbgrd)      ::   ibmap_ptr           !: array of pointers to nbmap
       !!
-      NAMELIST/nambdy_tide/filtide, ln_bdytide_2ddta, ln_bdytide_conj
+      NAMELIST/nambdy_tide/filtide, ln_bdytide_2ddta, ln_bdytide_conj, ln_harm_ana_store, ln_harm_ana_compute, ln_harmana_read
       !!----------------------------------------------------------------------
 
       IF( nn_timing == 1 ) CALL timing_start('bdytide_init')
@@ -101,6 +106,7 @@ CONTAINS
       ENDIF
 
       REWIND(numnam_cfg)
+      REWIND(numnam_ref)   ! slwa
 
       DO ib_bdy = 1, nb_bdy
          IF( nn_dyn2d_dta(ib_bdy) .ge. 2 ) THEN
@@ -124,6 +130,9 @@ CONTAINS
             IF(lwp) WRITE(numout,*) '             read tidal data in 2d files: ', ln_bdytide_2ddta
             IF(lwp) WRITE(numout,*) '             assume complex conjugate   : ', ln_bdytide_conj
             IF(lwp) WRITE(numout,*) '             Number of tidal components to read: ', nb_harmo
+            IF(lwp) WRITE(numout,*) '             Use PCOMS harmonic ananalysis or not: ', ln_harm_ana_store
+            IF(lwp) WRITE(numout,*) '             Compute Final  harmonic ananalysis or not: ', ln_harm_ana_compute
+            IF(lwp) WRITE(numout,*) '             Read in previous days harmonic data or start afresh: ', ln_harmana_read
             IF(lwp) THEN 
                     WRITE(numout,*) '             Tidal components: ' 
                DO itide = 1, nb_harmo

@@ -208,7 +208,7 @@ CONTAINS
       ptsd(:,:,:,jp_tem) = sf_tsd(jp_tem)%fnow(:,:,:)    ! NO mask
       ptsd(:,:,:,jp_sal) = sf_tsd(jp_sal)%fnow(:,:,:) 
       !
-      IF( ln_sco ) THEN                   !==   s- or mixed s-zps-coordinate   ==!
+      IF( ln_sco .and. 1==0) THEN                   !==   s- or mixed s-zps-coordinate   ==!
          !
          CALL wrk_alloc( jpk, ztp, zsp )
          !

@@ -254,6 +254,7 @@ CONTAINS
          & ln_trainc     )   CALL tra_asm_inc( kstp )       ! apply tracer assimilation increment
                              CALL tra_sbc    ( kstp )       ! surface boundary condition
       IF( ln_traqsr      )   CALL tra_qsr    ( kstp )       ! penetrative solar radiation qsr
+      IF( ln_tradwl      )   CALL tra_dwl    ( kstp )       ! Polcoms Style Short Wave Radiation 
       IF( ln_trabbc      )   CALL tra_bbc    ( kstp )       ! bottom heat flux
       IF( lk_trabbl      )   CALL tra_bbl    ( kstp )       ! advective (and/or diffusive) bottom boundary layer scheme
       IF( ln_tradmp      )   CALL tra_dmp    ( kstp )       ! internal damping trends
@@ -336,7 +337,6 @@ CONTAINS
                                CALL ssh_swp( kstp )         ! swap of sea surface height
       IF( lk_vvl           )   CALL dom_vvl_sf_swp( kstp )  ! swap of vertical scale factors
       !
-      IF( lrst_oce         )   CALL rst_write( kstp )       ! write output ocean restart file
 
 #if defined key_agrif
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -360,11 +360,13 @@ CONTAINS
                                CALL ctl_stop( 'step: indic < 0' )
                                CALL dia_wri_state( 'output.abort', kstp )
       ENDIF
+      IF( ln_harm_ana_store   )   CALL harm_ana( kstp )        ! Harmonic analysis of tides 
       IF( kstp == nit000   )   THEN
                  CALL iom_close( numror )     ! close input  ocean restart file
          IF(lwm) CALL FLUSH    ( numond )     ! flush output namelist oce
          IF( lwm.AND.numoni /= -1 ) CALL FLUSH    ( numoni )     ! flush output namelist ice
       ENDIF
+      IF( lrst_oce         )   CALL rst_write( kstp )       ! write output ocean restart file
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! Coupled mode

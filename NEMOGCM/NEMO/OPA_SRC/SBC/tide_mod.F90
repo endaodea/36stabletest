@@ -15,10 +15,10 @@ MODULE tide_mod
    PUBLIC   tide_harmo       ! called by tideini and diaharm modules
    PUBLIC   tide_init_Wave   ! called by tideini and diaharm modules
 
-   INTEGER, PUBLIC, PARAMETER ::   jpmax_harmo = 19   !: maximum number of harmonic
+   INTEGER, PUBLIC, PARAMETER ::   jpmax_harmo = 31   !: maximum number of harmonic
 
    TYPE, PUBLIC ::    tide
-      CHARACTER(LEN=4) ::   cname_tide
+      CHARACTER(LEN=5) ::   cname_tide
       REAL(wp)         ::   equitide
       INTEGER          ::   nutide
       INTEGER          ::   nt, ns, nh, np, np1, shift

@@ -41,6 +41,7 @@ MODULE sbcssr
    REAL(wp)        ::   rn_deds         ! restoring factor on SST and SSS
    LOGICAL         ::   ln_sssr_bnd     ! flag to bound erp term 
    REAL(wp)        ::   rn_sssr_bnd     ! ABS(Max./Min.) value of erp term [mm/day]
+   LOGICAL         ::   ln_UKMO_haney   ! UKMO specific flag to calculate Haney forcing  
 
    REAL(wp) , ALLOCATABLE, DIMENSION(:) ::   buffer   ! Temporary buffer for exchange
    TYPE(FLD), ALLOCATABLE, DIMENSION(:) ::   sf_sst   ! structure of input SST (file informations, fields read)
@@ -78,6 +79,14 @@ CONTAINS
       REAL(wp) ::   zerp_bnd ! local scalar for unit conversion of rn_epr_max factor
       INTEGER  ::   ierror   ! return error code
       !!
+      REAL(wp) ::   sst1,sst2                      ! sea surface temperature
+      REAL(wp) ::   e_sst1, e_sst2                 ! saturation vapour pressure
+      REAL(wp) ::   qs1,qs2                        ! specific humidity
+      REAL(wp) ::   pr_tmp                         ! temporary variable for pressure
+ 
+      REAL(wp), DIMENSION(jpi,jpj) ::  hny_frc1    ! Haney forcing for sensible heat, correction for latent heat   
+      REAL(wp), DIMENSION(jpi,jpj) ::  hny_frc2    ! Haney forcing for sensible heat, correction for latent heat   
+      !!
       CHARACTER(len=100) ::  cn_dir          ! Root directory for location of ssr files
       TYPE(FLD_N) ::   sn_sst, sn_sss        ! informations about the fields to be read
       !!----------------------------------------------------------------------
@@ -94,13 +103,34 @@ CONTAINS
             !                                      ! ========================= !
             !
             IF( nn_sstr == 1 ) THEN                                   !* Temperature restoring term
-               DO jj = 1, jpj
-                  DO ji = 1, jpi
-                     zqrp = rn_dqdt * ( sst_m(ji,jj) - sf_sst(1)%fnow(ji,jj,1) )
-                     qns(ji,jj) = qns(ji,jj) + zqrp
-                     qrp(ji,jj) = zqrp
-                  END DO
-               END DO
+                  IF( ln_UKMO_haney ) THEN
+                     DO jj = 1, jpj
+                        DO ji = 1, jpi
+                           sst1   =  sst_m(ji,jj)
+                           sst2   =  sf_sst(1)%fnow(ji,jj,1)   
+                           e_sst1 = 10**((0.7859+0.03477*sst1)/(1.+0.00412*sst1))
+                           e_sst2 = 10**((0.7859+0.03477*sst2)/(1.+0.00412*sst2))         
+                           pr_tmp = 0.01*pressnow(ji,jj)  !pr_tmp = 1012.0
+                           qs1    = (0.62197*e_sst1)/(pr_tmp-0.378*e_sst1)
+                           qs2    = (0.62197*e_sst2)/(pr_tmp-0.378*e_sst2)
+                           hny_frc1(ji,jj) = sst1-sst2                   
+                           hny_frc2(ji,jj) = qs1-qs2                     
+                          !Might need to mask off land points.
+                           hny_frc1(ji,jj)=-hny_frc1(ji,jj)*wndm(ji,jj)*1.42
+                           hny_frc2(ji,jj)=-hny_frc2(ji,jj)*wndm(ji,jj)*4688.0
+                           qns(ji,jj)=qns(ji,jj)+hny_frc1(ji,jj)+hny_frc2(ji,jj)   
+                           qrp(ji,jj) = 0.e0
+                        END DO
+                     END DO
+                  ELSE
+                     DO jj = 1, jpj
+                        DO ji = 1, jpi
+                           zqrp = rn_dqdt * ( sst_m(ji,jj) - sf_sst(1)%fnow(ji,jj,1) )
+                           qns(ji,jj) = qns(ji,jj) + zqrp
+                           qrp(ji,jj) = zqrp
+                        END DO
+                     END DO
+                  ENDIF
                CALL iom_put( "qrp", qrp )                             ! heat flux damping
             ENDIF
             !
@@ -162,7 +192,7 @@ CONTAINS
       !!
       CHARACTER(len=100) ::  cn_dir          ! Root directory for location of ssr files
       TYPE(FLD_N) ::   sn_sst, sn_sss        ! informations about the fields to be read
-      NAMELIST/namsbc_ssr/ cn_dir, nn_sstr, nn_sssr, rn_dqdt, rn_deds, sn_sst, sn_sss, ln_sssr_bnd, rn_sssr_bnd
+      NAMELIST/namsbc_ssr/ cn_dir, nn_sstr, nn_sssr, rn_dqdt, rn_deds, sn_sst, sn_sss, ln_sssr_bnd, rn_sssr_bnd, ln_UKMO_haney
       INTEGER     ::  ios
       !!----------------------------------------------------------------------
       !
@@ -188,6 +218,7 @@ CONTAINS
          WRITE(numout,*) '      dE/dS (restoring magnitude on SST)     rn_deds     = ', rn_deds, ' mm/day'
          WRITE(numout,*) '      flag to bound erp term                 ln_sssr_bnd = ', ln_sssr_bnd
          WRITE(numout,*) '      ABS(Max./Min.) erp threshold           rn_sssr_bnd = ', rn_sssr_bnd, ' mm/day'
+         WRITE(numout,*) '      Haney forcing                          ln_UKMO_haney = ', ln_UKMO_haney
       ENDIF
       !
       !                            !* Allocate erp and qrp array

@@ -47,6 +47,17 @@ MODULE zdfmxl
       REAL(wp)  :: iso_frac   ! Fraction of rn_dT_crit used
    END TYPE MXL_ZINT
 
+!Used for 25h mean
+   LOGICAL, PRIVATE :: mld_25h_init = .TRUE.    !Logical used to initalise 25h
+                                                !outputs. Necassary, because we need to
+                                                !initalise the mld_25h on the zeroth
+                                                !timestep (i.e in the nemogcm_init call)
+   LOGICAL, PRIVATE :: mld_25h_write = .FALSE.  !Logical confirm 25h calculating/processing
+
+   INTEGER, SAVE :: i_cnt_25h                   ! Counter for 25 hour means
+
+   REAL(wp),SAVE, ALLOCATABLE, DIMENSION(:,:,:) ::   hmld_zint_25h
+
    !! * Substitutions
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
@@ -440,6 +451,11 @@ CONTAINS
 
       INTEGER :: nn_mld_diag = 0    ! number of diagnostics
 
+      INTEGER :: i_steps          ! no of timesteps per hour
+      INTEGER :: ierror             ! logical error message   
+
+      REAL(wp) :: zdt             ! timestep variable  
+
       CHARACTER(len=1) :: cmld
 
       TYPE(MXL_ZINT) :: sn_mld1, sn_mld2, sn_mld3, sn_mld4, sn_mld5
@@ -495,8 +511,48 @@ CONTAINS
                   CALL zdf_mxl_zint_htc( kt )
                   CALL iom_put( "mldhtc_"//cmld , htc_mld(:,:)   )
                ENDIF
+
+               IF( iom_use( "mldzint25h_"//cmld ) ) THEN
+                  IF( .NOT. mld_25h_write ) mld_25h_write = .TRUE.
+                  zdt = rdt
+                  IF( nacc == 1 ) zdt = rdtmin
+                  IF( MOD( 3600,INT(zdt) ) == 0 ) THEN
+                     i_steps = 3600/INT(zdt)
+                  ELSE
+                     CALL ctl_stop('STOP', 'zdf_mxl_zint 25h: timestep must give MOD(3600,rdt) = 0 otherwise no hourly values are possible')
+                  ENDIF
+                  IF( ( mld_25h_init ) .OR. ( kt == nit000 ) ) THEN
+                     i_cnt_25h = 1
+                     IF( .NOT. ALLOCATED(hmld_zint_25h) ) THEN
+                        ALLOCATE( hmld_zint_25h(jpi,jpj,nn_mld_diag), STAT=ierror )
+                        IF( ierror > 0 )  CALL ctl_stop( 'zdf_mxl_zint 25h: unable to allocate hmld_zint_25h' )   
+                     ENDIF
+                     hmld_zint_25h(:,:,jn) = hmld_zint(:,:)
+                  ENDIF
+                  IF( MOD( kt, i_steps ) == 0 .AND.  kt .NE. nn_it000 ) THEN
+                     hmld_zint_25h(:,:,jn) = hmld_zint_25h(:,:,jn) + hmld_zint(:,:)
+                  ENDIF
+                  IF( i_cnt_25h .EQ. 25 .AND.  MOD( kt, i_steps*24) == 0 .AND. kt .NE. nn_it000 ) THEN
+                     CALL iom_put( "mldzint25h_"//cmld , hmld_zint_25h(:,:,jn) / 25._wp   )
+                  ENDIF
+               ENDIF
+
             ENDIF
          END DO
+                  
+         IF(  mld_25h_write  ) THEN
+            IF( ( MOD( kt, i_steps ) == 0 ) .OR.  mld_25h_init ) THEN
+               IF (lwp) THEN
+                  WRITE(numout,*) 'zdf_mxl_zint (25h) : Summed the following number of hourly values so far',i_cnt_25h
+	       ENDIF
+               i_cnt_25h = i_cnt_25h + 1
+               IF( mld_25h_init ) mld_25h_init = .FALSE.
+            ENDIF
+            IF( i_cnt_25h .EQ. 25 .AND.  MOD( kt, i_steps*24) == 0 .AND. kt .NE. nn_it000 ) THEN
+               i_cnt_25h = 1 
+            ENDIF
+         ENDIF
+                  
       ENDIF
 
    END SUBROUTINE zdf_mxl_zint

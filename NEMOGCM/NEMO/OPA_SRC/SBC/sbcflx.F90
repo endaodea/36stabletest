@@ -21,6 +21,7 @@ MODULE sbcflx
    USE in_out_manager  ! I/O manager
    USE lib_mpp         ! distribued memory computing library
    USE lbclnk          ! ocean lateral boundary conditions (or mpp link)
+   USE wrk_nemo        ! work arrays
 
    IMPLICIT NONE
    PRIVATE
@@ -36,6 +37,8 @@ MODULE sbcflx
    INTEGER , PARAMETER ::   jp_press = 6  ! index of pressure for UKMO shelf fluxes
    TYPE(FLD), ALLOCATABLE, DIMENSION(:) ::   sf    ! structure of input fields (file informations, fields read)
    LOGICAL , PUBLIC    ::   ln_shelf_flx = .FALSE. ! UKMO SHELF specific flux flag
+   LOGICAL , PUBLIC    ::   ln_rel_wind = .FALSE.  ! UKMO SHELF specific flux flag - relative winds
+   REAL(wp)            ::   rn_wfac                ! multiplication factor for ice/ocean velocity in the calculation of wind stress (clem)
    INTEGER             ::   jpfld_local   ! maximum number of files to read (locally modified depending on ln_shelf_flx) 
 
    !! * Substitutions
@@ -86,16 +89,18 @@ CONTAINS
       REAL(wp) ::   ztx, zty, zmod, zcoef ! temporary variables
       REAL     ::   cs                    ! UKMO SHELF: Friction co-efficient at surface
       REAL     ::   totwindspd            ! UKMO SHELF: Magnitude of wind speed vector
+      REAL(wp), DIMENSION(:,:), POINTER ::   zwnd_i, zwnd_j    ! wind speed components at T-point
 
       REAL(wp) ::   rhoa  = 1.22         ! Air density kg/m3
       REAL(wp) ::   cdrag = 1.5e-3       ! drag coefficient 
       !!
       CHARACTER(len=100) ::  cn_dir                               ! Root directory for location of flx files
       TYPE(FLD_N), DIMENSION(jpfld) ::   slf_i                    ! array of namelist information structures
-      TYPE(FLD_N) ::   sn_utau, sn_vtau, sn_qtot, sn_qsr, sn_emp, sn_press  !  informations about the fields to be read
-      LOGICAL     ::   ln_foam_flx  = .FALSE.                     ! UKMO FOAM specific flux flag
-      NAMELIST/namsbc_flx/ cn_dir, sn_utau, sn_vtau, sn_qtot, sn_qsr, sn_emp,   &
-      &                    ln_foam_flx, sn_press, ln_shelf_flx
+      TYPE(FLD_N) ::   sn_utau, sn_vtau, sn_qtot, sn_qsr, sn_emp, sn_press  !  informations about the fields to be read 
+      LOGICAL     ::   ln_foam_flx  = .FALSE.                     ! UKMO FOAM specific flux flag 
+      NAMELIST/namsbc_flx/ cn_dir, sn_utau, sn_vtau, sn_qtot, sn_qsr, sn_emp,   & 
+      &                    ln_foam_flx, sn_press, ln_shelf_flx, ln_rel_wind,    &
+      &                    rn_wfac
       !!---------------------------------------------------------------------
       !
       IF( kt == nit000 ) THEN                ! First call kt=nit000  
@@ -146,6 +151,25 @@ CONTAINS
      
       IF( MOD( kt-1, nn_fsbc ) == 0 ) THEN                        ! update ocean fluxes at each SBC frequency
 
+         !!UKMO SHELF wind speed relative to surface currents - put here to allow merging with coupling branch
+         IF( ln_shelf_flx ) THEN
+            CALL wrk_alloc( jpi,jpj, zwnd_i, zwnd_j )
+
+            IF( ln_rel_wind ) THEN
+               DO jj = 2, jpjm1
+                  DO ji = fs_2, fs_jpim1   ! vect. opt.
+                     zwnd_i(ji,jj) = ( sf(jp_utau)%fnow(ji,jj,1) - rn_wfac * 0.5 * ( ssu_m(ji-1,jj  ) + ssu_m(ji,jj) ))
+                     zwnd_j(ji,jj) = ( sf(jp_vtau)%fnow(ji,jj,1) - rn_wfac * 0.5 * ( ssv_m(ji  ,jj-1) + ssv_m(ji,jj) ))
+                  END DO
+               END DO
+               CALL lbc_lnk( zwnd_i(:,:) , 'T', -1. )
+               CALL lbc_lnk( zwnd_j(:,:) , 'T', -1. )
+            ELSE
+               zwnd_i(:,:) = sf(jp_utau)%fnow(:,:,1)
+               zwnd_j(:,:) = sf(jp_vtau)%fnow(:,:,1)
+            ENDIF
+         ENDIF
+
          IF( ln_dm2dc ) THEN   ;   qsr(:,:) = sbc_dcy( sf(jp_qsr)%fnow(:,:,1) )   ! modify now Qsr to include the diurnal cycle
          ELSE                  ;   qsr(:,:) =          sf(jp_qsr)%fnow(:,:,1)
          ENDIF
@@ -160,17 +184,17 @@ CONTAINS
                   END DO
                END DO
             ENDIF ! ln_shelf_flx
-      
+
          DO jj = 1, jpj                                           ! set the ocean fluxes from read fields
             DO ji = 1, jpi
                    IF( ln_shelf_flx ) THEN
                       !! UKMO SHELF - need atmospheric pressure to calculate Haney forcing
                       pressnow(ji,jj) = sf(jp_press)%fnow(ji,jj,1)
                       !! UKMO SHELF flux files contain wind speed not wind stress
-                      totwindspd = sqrt((sf(jp_utau)%fnow(ji,jj,1))**2.0 + (sf(jp_vtau)%fnow(ji,jj,1))**2.0)
+                      totwindspd = sqrt(zwnd_i(ji,jj)*zwnd_i(ji,jj) + zwnd_j(ji,jj)*zwnd_j(ji,jj))
                       cs = 0.63 + (0.066 * totwindspd)
-                      utau(ji,jj) = cs * (rhoa/rau0) * sf(jp_utau)%fnow(ji,jj,1) * totwindspd
-                      vtau(ji,jj) = cs * (rhoa/rau0) * sf(jp_vtau)%fnow(ji,jj,1) * totwindspd
+                      utau(ji,jj) = cs * (rhoa/rau0) * zwnd_i(ji,jj) * totwindspd
+                      vtau(ji,jj) = cs * (rhoa/rau0) * zwnd_j(ji,jj) * totwindspd
                    ELSE
                       utau(ji,jj) = sf(jp_utau)%fnow(ji,jj,1)
                       vtau(ji,jj) = sf(jp_vtau)%fnow(ji,jj,1)
@@ -225,6 +249,10 @@ CONTAINS
                CALL prihre( sf(jf)%fnow, jpi, jpj, 1, jpi, 20, 1, jpj, 10, zfact, numout )
             END DO
             CALL FLUSH(numout)
+         ENDIF
+         !
+         IF( ln_shelf_flx ) THEN
+            CALL wrk_dealloc( jpi,jpj, zwnd_i, zwnd_j )
          ENDIF
          !
       ENDIF

@@ -86,6 +86,8 @@ MODULE nemogcm
    USE stopts
    USE diatmb          ! Top,middle,bottom output
    USE dia25h          ! 25h mean output
+   USE diaopfoam       ! FOAM operational output
+   USE diurnal_bulk    ! diurnal bulk SST 
 
    IMPLICIT NONE
    PRIVATE
@@ -404,6 +406,9 @@ CONTAINS
 
                             CALL  istate_init   ! ocean initial state (Dynamics and tracers)
 
+      CALL diurnal_sst_bulk_init                ! diurnal sst
+      IF ( ln_diurnal ) CALL diurnal_sst_coolskin_init   ! cool skin  
+
       IF( lk_tide       )   CALL    tide_init( nit000 )    ! Initialisation of the tidal harmonics
 
                             CALL     sbc_init   ! Forcings : surface module (clem: moved here for bdy purpose)
@@ -478,6 +483,7 @@ CONTAINS
       IF(lwp) WRITE(numout,*) 'Euler time step switch is ', neuler
                             CALL dia_tmb_init  ! TMB outputs
                             CALL dia_25h_init  ! 25h mean  outputs
+                            CALL dia_diaopfoam_init  ! FOAM operational output
       !
    END SUBROUTINE nemo_init
 

@@ -19,6 +19,7 @@ MODULE dia25h
    USE zdfgls, ONLY: mxln
    USE zdf_oce, ONLY: en
 #endif
+   USE diatmb
 
    IMPLICIT NONE
    PRIVATE
@@ -29,7 +30,7 @@ MODULE dia25h
 
   !! * variables for calculating 25-hourly means
    REAL(wp),SAVE, ALLOCATABLE,   DIMENSION(:,:,:) ::   tn_25h  , sn_25h, rinsitu_t_25h  
-   REAL(wp),SAVE, ALLOCATABLE,   DIMENSION(:,:)   ::   sshn_25h 
+   REAL(wp),SAVE, ALLOCATABLE,   DIMENSION(:,:)   ::   sshn_25h, insitu_bot_25h, temp_bot_25h 
    REAL(wp),SAVE, ALLOCATABLE,   DIMENSION(:,:,:) ::   un_25h  , vn_25h  , wn_25h
    REAL(wp),SAVE, ALLOCATABLE,   DIMENSION(:,:,:) ::   avt_25h , avm_25h
 #if defined key_zdfgls || key_zdftke
@@ -62,6 +63,7 @@ CONTAINS
       !!
       INTEGER ::   ios                 ! Local integer output status for namelist read
       INTEGER ::   ierror              ! Local integer for memory allocation
+      REAL(wp), DIMENSION(jpi,jpj,3)   ::   zwtmb                                 ! temporary workspace
       !
       NAMELIST/nam_dia25h/ ln_dia25h
       !!----------------------------------------------------------------------
@@ -98,6 +100,14 @@ CONTAINS
       IF( ierror > 0 ) THEN
          CALL ctl_stop( 'dia_25h: unable to allocate rinsitu_t_25h' )   ;   RETURN
       ENDIF
+      ALLOCATE( insitu_bot_25h(jpi,jpj), STAT=ierror )
+      IF( ierror > 0 ) THEN
+         CALL ctl_stop( 'dia_25h: unable to allocate insitu_bot_25h' )   ;   RETURN
+      ENDIF      
+      ALLOCATE( temp_bot_25h(jpi,jpj), STAT=ierror )
+      IF( ierror > 0 ) THEN
+         CALL ctl_stop( 'dia_25h: unable to allocate temp_bot_25h' )   ;   RETURN
+      ENDIF                           
       ALLOCATE( un_25h(jpi,jpj,jpk), STAT=ierror )
       IF( ierror > 0 ) THEN
          CALL ctl_stop( 'dia_25h: unable to allocate un_25h' )   ;   RETURN
@@ -142,6 +152,10 @@ CONTAINS
       sn_25h(:,:,:) = tsb(:,:,:,jp_sal)
       CALL theta2t
       rinsitu_t_25h(:,:,:) = rinsitu_t(:,:,:)
+      CALL dia_calctmb( rinsitu_t(:,:,:),zwtmb )
+      insitu_bot_25h(:,:) = zwtmb(:,:,3)
+      CALL dia_calctmb( tn_25h(:,:,:),zwtmb )
+      temp_bot_25h(:,:) = zwtmb(:,:,3)
       sshn_25h(:,:) = sshb(:,:)
       un_25h(:,:,:) = ub(:,:,:)
       vn_25h(:,:,:) = vb(:,:,:)
@@ -236,6 +250,11 @@ CONTAINS
          sn_25h(:,:,:)        = sn_25h(:,:,:) + tsn(:,:,:,jp_sal)
          CALL theta2t
          rinsitu_t_25h(:,:,:)  = rinsitu_t_25h(:,:,:) + rinsitu_t(:,:,:)
+         CALL dia_calctmb( rinsitu_t(:,:,:),zwtmb )
+         insitu_bot_25h(:,:)  = insitu_bot_25h(:,:) + zwtmb(:,:,3)
+         zw3d(:,:,:)          = tsn(:,:,:,jp_tem)
+         CALL dia_calctmb( zw3d,zwtmb )
+         temp_bot_25h(:,:)    = temp_bot_25h(:,:) + zwtmb(:,:,3)
          sshn_25h(:,:)        = sshn_25h(:,:) + sshn (:,:)
          un_25h(:,:,:)        = un_25h(:,:,:) + un(:,:,:)
          vn_25h(:,:,:)        = vn_25h(:,:,:) + vn(:,:,:)
@@ -267,6 +286,8 @@ CONTAINS
             tn_25h(:,:,:)        = tn_25h(:,:,:) / 25.0_wp
             sn_25h(:,:,:)        = sn_25h(:,:,:) / 25.0_wp
             rinsitu_t_25h(:,:,:)  = rinsitu_t_25h(:,:,:) / 25.0_wp
+            insitu_bot_25h(:,:)  = insitu_bot_25h(:,:) / 25.0_wp 
+            temp_bot_25h(:,:)    = temp_bot_25h(:,:) /25.0_wp
             sshn_25h(:,:)        = sshn_25h(:,:) / 25.0_wp
             un_25h(:,:,:)        = un_25h(:,:,:) / 25.0_wp
             vn_25h(:,:,:)        = vn_25h(:,:,:) / 25.0_wp
@@ -288,6 +309,10 @@ CONTAINS
             CALL theta2t                                                                    ! calculate insitu temp
             zw3d(:,:,:) = rinsitu_t_25h(:,:,:)*tmask(:,:,:) + zmdi*(1.0-tmask(:,:,:))
             CALL iom_put("tempis25h", zw3d)   ! in-situ temperature
+            zw2d(:,:) = insitu_bot_25h(:,:)*tmask(:,:,1) + zmdi*(1.0-tmask(:,:,1))
+            CALL iom_put("tempisbot25h", zw2d) ! bottom in-situ temperature
+            zw2d(:,:) = temp_bot_25h(:,:)*tmask(:,:,1) + zmdi*(1.0-tmask(:,:,1))
+            CALL iom_put("temperbot25h",zw2d) ! bottom potential temperature
             zw3d(:,:,:) = sn_25h(:,:,:)*tmask(:,:,:) + zmdi*(1.0-tmask(:,:,:))
             CALL iom_put( "salin25h", zw3d  )   ! salinity
             zw2d(:,:) = sshn_25h(:,:)*tmask(:,:,1) + zmdi*(1.0-tmask(:,:,1))
@@ -320,6 +345,10 @@ CONTAINS
             sn_25h(:,:,:) = tsn(:,:,:,jp_sal)
             CALL theta2t
             rinsitu_t_25h(:,:,:) = rinsitu_t(:,:,:)
+            CALL dia_calctmb( rinsitu_t(:,:,:),zwtmb )
+            insitu_bot_25h(:,:) = zwtmb(:,:,3)
+            CALL dia_calctmb( tn_25h(:,:,:),zwtmb)
+            temp_bot_25h(:,:) = zwtmb(:,:,3)
             sshn_25h(:,:) = sshn (:,:)
             un_25h(:,:,:) = un(:,:,:)
             vn_25h(:,:,:) = vn(:,:,:)

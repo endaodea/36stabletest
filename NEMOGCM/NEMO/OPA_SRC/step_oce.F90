@@ -111,6 +111,9 @@ MODULE step_oce
    USE bdytides          ! harmonic analysis of tides (harm_ana routine) 
    USE diaobs           ! Observation operator
 
+   USE diurnal_bulk    ! diurnal SST bulk routines  (diurnal_sst_takaya routine)  
+   USE cool_skin       ! diurnal cool skin correction (diurnal_sst_coolskin routine)
+
    USE timing           ! Timing
 
 #if defined key_agrif

@@ -45,6 +45,7 @@ MODULE diawri
    USE diadimg         ! dimg direct access file format output
    USE diatmb          ! Top,middle,bottom output
    USE dia25h          ! 25h Mean output
+   USE diaopfoam       ! Diaopfoam output
    USE iom
    USE ioipsl
    USE dynspg_oce, ONLY: un_adv, vn_adv ! barotropic velocities     
@@ -400,6 +401,9 @@ CONTAINS
       ENDIF
       IF (ln_dia25h) THEN
          CALL dia_25h( kt )
+      ENDIF
+      IF (ln_diaopfoam) THEN
+         CALL dia_diaopfoam
       ENDIF
       !
       IF( nn_timing == 1 )   CALL timing_stop('dia_wri')

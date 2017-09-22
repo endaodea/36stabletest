@@ -224,6 +224,17 @@ CONTAINS
                                   CALL wzv           ( kstp )  ! now cross-level velocity 
       ENDIF
 
+      ! Cool skin
+      IF ( ln_diurnal ) THEN  
+         IF ( ln_blk_core ) THEN
+            CALL diurnal_sst_coolskin_step( &  
+                    qns(:,:)+(rn_abs*qsr(:,:)), taum, rhop(:,:,1), rdt) 
+         ELSE
+            CALL diurnal_sst_coolskin_step( &  
+                    qns, taum, rhop(:,:,1), rdt) 
+         ENDIF
+      ENDIF
+
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! diagnostics and outputs             (ua, va, tsa used as workspace)
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -236,6 +247,31 @@ CONTAINS
                             CALL dia_wri( kstp )         ! ocean model: outputs
       !
       IF( ln_crs     )      CALL crs_fld( kstp )         ! ocean model: online field coarsening & output
+
+      !Diurnal warm layer model        
+      IF ( ln_diurnal ) THEN
+         IF ( ln_blk_core ) THEN
+            IF( kstp == nit000 )THEN  
+               CALL diurnal_sst_takaya_step( &  
+               &    qsr(:,:)-(rn_abs*qsr(:,:)), qns(:,:)+(rn_abs*qsr(:,:)), &
+               &    taum, rhop(:,:,1), &
+               &    rdt, ld_calcfrac = .TRUE.)  
+            ELSE  
+               CALL diurnal_sst_takaya_step( &  
+               &    qsr(:,:)-(rn_abs*qsr(:,:)), qns(:,:)+(rn_abs*qsr(:,:)), &
+               &    taum, rhop(:,:,1), rdt )  
+            ENDIF 
+         ELSE
+            IF( kstp == nit000 )THEN  
+               CALL diurnal_sst_takaya_step( &  
+               &    qsr, qns, taum, rhop(:,:,1), &
+               &    rdt, ld_calcfrac = .TRUE.)  
+            ELSE  
+               CALL diurnal_sst_takaya_step( &  
+               &    qsr, qns, taum, rhop(:,:,1), rdt )  
+            ENDIF 
+         ENDIF
+      ENDIF
 
 #if defined key_top
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>

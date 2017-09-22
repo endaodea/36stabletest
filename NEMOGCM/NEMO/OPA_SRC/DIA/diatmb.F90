@@ -18,6 +18,7 @@ MODULE diatmb
    LOGICAL , PUBLIC ::   ln_diatmb     !: Top Middle and Bottom output 
    PUBLIC   dia_tmb_init            ! routine called by nemogcm.F90
    PUBLIC   dia_tmb                 ! routine called by diawri.F90
+   PUBLIC   dia_calctmb             ! routine called by dia25h.F90
 
    !!----------------------------------------------------------------------
    !! NEMO/OPA 3.6 , NEMO Consortium (2014)

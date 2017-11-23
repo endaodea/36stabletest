@@ -107,6 +107,11 @@ MODULE bdy_oce
                                                             !: = 1 read it in a NetCDF file
    LOGICAL, DIMENSION(jp_bdy) ::   ln_tra_dmp               !: =T Tracer damping
    LOGICAL, DIMENSION(jp_bdy) ::   ln_dyn3d_dmp             !: =T Baroclinic velocity damping
+   
+!   !JT
+   LOGICAL, DIMENSION(jp_bdy) ::   ln_ssh_bdy               !: =T USE SSH BDY - name list switch
+!   !JT
+   
    REAL(wp),    DIMENSION(jp_bdy) ::   rn_time_dmp              !: Damping time scale in days
    REAL(wp),    DIMENSION(jp_bdy) ::   rn_time_dmp_out          !: Damping time scale in days at radiation outflow points
 

@@ -148,6 +148,8 @@ CONTAINS
             END DO
          END DO
          !
+         CALL lbc_lnk( zhke, 'T', 1. )
+         !
       CASE ( nkeg_HW )                          !--  Hollingsworth scheme  --!
          DO jk = 1, jpkm1
             DO jj = 2, jpjm1       

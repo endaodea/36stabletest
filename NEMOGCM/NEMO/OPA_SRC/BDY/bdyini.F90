@@ -104,6 +104,11 @@ CONTAINS
          &             ln_vol, nn_volctl, nn_rimwidth
       !!
       NAMELIST/nambdy_index/ ctypebdy, nbdyind, nbdybeg, nbdyend
+      
+      
+!      ! JT
+      NAMELIST/nambdy_ssh/ ln_ssh_bdy
+!      ! JT
       INTEGER  ::   ios                 ! Local integer output status for namelist read
       !!----------------------------------------------------------------------
 
@@ -131,6 +136,26 @@ CONTAINS
       READ  ( numnam_cfg, nambdy, IOSTAT = ios, ERR = 902 )
 902   IF( ios /= 0 ) CALL ctl_nam ( ios , 'nambdy in configuration namelist', lwp )
       IF(lwm) WRITE ( numond, nambdy )
+      !JT Read nambdy_ssh namelist 
+      REWIND( numnam_ref )              ! Namelist nambdy in reference namelist :Unstructured open boundaries  
+      READ  ( numnam_ref, nambdy_ssh, IOSTAT = ios, ERR = 905)
+905   IF( ios /= 0 ) CALL ctl_nam ( ios , 'nambdy_ssh in reference namelist', lwp )
+
+      REWIND( numnam_cfg )              ! Namelist nambdy in configuration namelist :Unstructured open boundaries
+      READ  ( numnam_cfg, nambdy_ssh, IOSTAT = ios, ERR = 906)
+906   IF( ios /= 0 ) CALL ctl_nam ( ios , 'nambdy_ssh in configuration namelist', lwp )
+      IF(lwm) WRITE ( numond, nambdy_ssh )
+      
+      IF(lwp) WRITE(numout,*)
+      IF(lwp) WRITE(numout,*) 'nambdy_ssh : use of ssh boundaries'
+      IF(lwp) WRITE(numout,*) '~~~~~~~~'
+      IF(lwp) WRITE(numout,*) '      ln_ssh_bdy: '
+      DO ib_bdy = 1,nb_bdy
+        IF(lwp) WRITE(numout,*) '      ln_ssh_bdy(',ib_bdy,'): ',ln_ssh_bdy(ib_bdy)
+      ENDDO
+      IF(lwp) WRITE(numout,*) '~~~~~~~~'
+      IF(lwp) WRITE(numout,*) 
+      !JT
 
       ! -----------------------------------------
       ! Check and write out namelist parameters
@@ -184,6 +209,22 @@ CONTAINS
              dta_bdy(ib_bdy)%ll_v2d = .true.
           CASE DEFAULT   ;   CALL ctl_stop( 'unrecognised value for cn_dyn2d' )
         END SELECT
+        
+        !JT override dta_bdy(ib_bdy)%ll_ssh with namelist value (ln_ssh_bdy)
+        IF(lwp) WRITE(numout,*) 'nambdy_ssh : use of ssh boundaries'
+        IF(lwp) WRITE(numout,*) '~~~~~~~~'
+        IF(lwp) WRITE(numout,*) '      ib_bdy: ',ib_bdy
+        IF(lwp) WRITE(numout,*) '      Prior to Implementation of nambdy_ssh'
+        IF(lwp) WRITE(numout,*) '      dta_bdy(ib_bdy)%ll_ssh: ',dta_bdy(ib_bdy)%ll_ssh
+        
+        dta_bdy(ib_bdy)%ll_ssh = ln_ssh_bdy(ib_bdy)
+        
+        IF(lwp) WRITE(numout,*) '      After to Implementation of nambdy_ssh'
+        IF(lwp) WRITE(numout,*) '      dta_bdy(ib_bdy)%ll_ssh: ',dta_bdy(ib_bdy)%ll_ssh
+        IF(lwp) WRITE(numout,*) '~~~~~~~~'
+        
+        !JT         
+        
         IF( cn_dyn2d(ib_bdy) /= 'none' ) THEN
            SELECT CASE( nn_dyn2d_dta(ib_bdy) )                   ! 
               CASE( 0 )      ;   IF(lwp) WRITE(numout,*) '      initial state used for bdy data'        

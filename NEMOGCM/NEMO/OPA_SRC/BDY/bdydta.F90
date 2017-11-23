@@ -397,6 +397,24 @@ CONTAINS
       IF (.NOT.lk_dynspg_ts) CALL bdy_dta_tides( kt=kt, time_offset=time_offset )
 #endif
       ! end jchanut tschanges
+      
+      
+      !JT use sshn (ssh now) if ln_ssh_bdy set to false in the name list
+      DO ib_bdy = 1, nb_bdy   
+        nblen => idx_bdy(ib_bdy)%nblen
+        dta => dta_bdy(ib_bdy)
+         
+        ilen1(:) = nblen(:)
+        !JT IF( .NOT. dta%ll_ssh ) THEN 
+        IF( .NOT. ln_ssh_bdy(ib_bdy) ) THEN 
+          igrd = 1 ! t Grid
+          DO ib = 1, ilen1(igrd)
+              ii = idx_bdy(ib_bdy)%nbi(ib,igrd)
+              ij = idx_bdy(ib_bdy)%nbj(ib,igrd)
+              dta_bdy(ib_bdy)%ssh(ib) = sshn(ii,ij) * tmask(ii,ij,1)         
+          END DO 
+        END IF
+      END DO 
 
       IF ( ln_apr_obc ) THEN
          DO ib_bdy = 1, nb_bdy
@@ -785,12 +803,22 @@ CONTAINS
             IF( dta%ll_u2d ) ALLOCATE( dta%u2d(nblen(2)) )
             IF( dta%ll_v2d ) ALLOCATE( dta%v2d(nblen(3)) )
          ENDIF
-         IF ( nn_dyn2d_dta(ib_bdy) .eq. 1 .or. nn_dyn2d_dta(ib_bdy) .eq. 3 ) THEN
-            IF( dta%ll_ssh ) THEN
-               if(lwp) write(numout,*) '++++++ dta%ssh pointing to fnow'
-               jfld = jfld + 1
-               dta%ssh => bf(jfld)%fnow(:,1,1)
+         IF ( nn_dyn2d_dta(ib_bdy) .eq. 1 .or. nn_dyn2d_dta(ib_bdy) .eq. 3 ) THEN         
+            !JT 
+            !JT allocate ssh if dta%ll_ssh set too false, as may still use it
+            IF (dta%ll_ssh) THEN
+                IF( dta%ll_ssh ) THEN
+                  if(lwp) write(numout,*) '++++++ dta%ssh pointing to fnow'
+                  jfld = jfld + 1
+                  dta%ssh => bf(jfld)%fnow(:,1,1)
+                ENDIF
+            ELSE
+              if(lwp) write(numout,*) '++++++ dta%ssh allocated space'
+              !ALLOCATE( dta_bdy(ib_bdy)%ssh(nblen(1)) )            
+              ALLOCATE( dta%ssh(nblen(1)) )            
             ENDIF
+            !JT if 
+            
             IF ( dta%ll_u2d ) THEN
                IF ( ln_full_vel_array(ib_bdy) ) THEN
                   if(lwp) write(numout,*) '++++++ dta%u2d allocated space'

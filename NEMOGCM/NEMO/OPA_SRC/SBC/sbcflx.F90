@@ -156,14 +156,12 @@ CONTAINS
             CALL wrk_alloc( jpi,jpj, zwnd_i, zwnd_j )
 
             IF( ln_rel_wind ) THEN
-               DO jj = 2, jpjm1
-                  DO ji = fs_2, fs_jpim1   ! vect. opt.
-                     zwnd_i(ji,jj) = ( sf(jp_utau)%fnow(ji,jj,1) - rn_wfac * 0.5 * ( ssu_m(ji-1,jj  ) + ssu_m(ji,jj) ))
-                     zwnd_j(ji,jj) = ( sf(jp_vtau)%fnow(ji,jj,1) - rn_wfac * 0.5 * ( ssv_m(ji  ,jj-1) + ssv_m(ji,jj) ))
+               DO jj = 1, jpj
+                  DO ji = 1, jpi
+                     zwnd_i(ji,jj) = sf(jp_utau)%fnow(ji,jj,1) - rn_wfac * ssu_m(ji,jj)
+                     zwnd_j(ji,jj) = sf(jp_vtau)%fnow(ji,jj,1) - rn_wfac * ssv_m(ji,jj)
                   END DO
                END DO
-               CALL lbc_lnk( zwnd_i(:,:) , 'T', -1. )
-               CALL lbc_lnk( zwnd_j(:,:) , 'T', -1. )
             ELSE
                zwnd_i(:,:) = sf(jp_utau)%fnow(:,:,1)
                zwnd_j(:,:) = sf(jp_vtau)%fnow(:,:,1)

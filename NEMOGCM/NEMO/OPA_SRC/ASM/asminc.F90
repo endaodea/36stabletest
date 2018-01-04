@@ -56,6 +56,7 @@ MODULE asminc
     LOGICAL, PUBLIC, PARAMETER :: lk_asminc = .FALSE.  !: No assimilation increments
 #endif
    LOGICAL, PUBLIC :: ln_bkgwri = .FALSE.      !: No output of the background state fields
+   LOGICAL, PUBLIC :: ln_avgbkg = .FALSE.      !: No output of the mean background state fields
    LOGICAL, PUBLIC :: ln_asmiau = .FALSE.      !: No applying forcing with an assimilation increment
    LOGICAL, PUBLIC :: ln_asmdin = .FALSE.      !: No direct initialization
    LOGICAL, PUBLIC :: ln_trainc = .FALSE.      !: No tracer (T and S) assimilation increments
@@ -79,6 +80,7 @@ MODULE asminc
    INTEGER , PUBLIC ::   nitdin      !: Time step of the background state for direct initialization
    INTEGER , PUBLIC ::   nitiaustr   !: Time step of the start of the IAU interval 
    INTEGER , PUBLIC ::   nitiaufin   !: Time step of the end of the IAU interval
+   INTEGER , PUBLIC ::   nitavgbkg   !: Number of timesteps to average assim bkg [0,nitavgbkg]
    ! 
    INTEGER , PUBLIC ::   niaufn      !: Type of IAU weighing function: = 0   Constant weighting
    !                                 !: = 1   Linear hat-like, centred in middle of IAU interval 
@@ -118,6 +120,7 @@ CONTAINS
       INTEGER :: iitdin_date     ! Date YYYYMMDD of background time step for DI
       INTEGER :: iitiaustr_date  ! Date YYYYMMDD of IAU interval start time step
       INTEGER :: iitiaufin_date  ! Date YYYYMMDD of IAU interval final time step
+      INTEGER :: iitavgbkg_date  ! Date YYYYMMDD of end of assim bkg averaging period
       !
       REAL(wp) :: znorm        ! Normalization factor for IAU weights
       REAL(wp) :: ztotwgt      ! Value of time-integrated IAU weights (should be equal to one)
@@ -128,18 +131,35 @@ CONTAINS
       !
       REAL(wp), POINTER, DIMENSION(:,:) ::   hdiv   ! 2D workspace
       !!
-      NAMELIST/nam_asminc/ ln_bkgwri,                                      &
+      NAMELIST/nam_asminc/ ln_bkgwri, ln_avgbkg,                           &
          &                 ln_trainc, ln_dyninc, ln_sshinc,                &
          &                 ln_asmdin, ln_asmiau,                           &
          &                 nitbkg, nitdin, nitiaustr, nitiaufin, niaufn,   &
-         &                 ln_salfix, salfixmin, nn_divdmp
+         &                 ln_salfix, salfixmin, nn_divdmp, nitavgbkg
       !!----------------------------------------------------------------------
 
       !-----------------------------------------------------------------------
       ! Read Namelist nam_asminc : assimilation increment interface
       !-----------------------------------------------------------------------
+
+      ! Set default values
+      ln_bkgwri = .FALSE.
+      ln_avgbkg = .FALSE.
+      ln_trainc = .FALSE.
+      ln_dyninc = .FALSE.
+      ln_sshinc = .FALSE.
       ln_seaiceinc = .FALSE.
+      ln_asmdin = .FALSE.
+      ln_asmiau = .TRUE.
+      ln_salfix = .FALSE.
       ln_temnofreeze = .FALSE.
+      salfixmin = -9999
+      nitbkg    = 0
+      nitdin    = 0      
+      nitiaustr = 1
+      nitiaufin = 150
+      niaufn    = 0
+      nitavgbkg = 1
 
       REWIND( numnam_ref )              ! Namelist nam_asminc in reference namelist : Assimilation increment
       READ  ( numnam_ref, nam_asminc, IOSTAT = ios, ERR = 901)
@@ -157,6 +177,7 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~~~~~~'
          WRITE(numout,*) '   Namelist namasm : set assimilation increment parameters'
          WRITE(numout,*) '      Logical switch for writing out background state          ln_bkgwri = ', ln_bkgwri
+         WRITE(numout,*) '      Logical switch for writing mean background state         ln_avgbkg = ', ln_avgbkg
          WRITE(numout,*) '      Logical switch for applying tracer increments            ln_trainc = ', ln_trainc
          WRITE(numout,*) '      Logical switch for applying velocity increments          ln_dyninc = ', ln_dyninc
          WRITE(numout,*) '      Logical switch for applying SSH increments               ln_sshinc = ', ln_sshinc
@@ -167,6 +188,7 @@ CONTAINS
          WRITE(numout,*) '      Timestep of background for DI in [0,nitend-nit000-1]     nitdin    = ', nitdin
          WRITE(numout,*) '      Timestep of start of IAU interval in [0,nitend-nit000-1] nitiaustr = ', nitiaustr
          WRITE(numout,*) '      Timestep of end of IAU interval in [0,nitend-nit000-1]   nitiaufin = ', nitiaufin
+         WRITE(numout,*) '      Number of timesteps to average assim bkg [0,nitavgbkg]   nitavgbkg = ', nitavgbkg
          WRITE(numout,*) '      Type of IAU weighting function                           niaufn    = ', niaufn
          WRITE(numout,*) '      Logical switch for ensuring that the sa > salfixmin      ln_salfix = ', ln_salfix
          WRITE(numout,*) '      Minimum salinity after applying the increments           salfixmin = ', salfixmin
@@ -176,6 +198,7 @@ CONTAINS
       nitdin_r    = nitdin    + nit000 - 1  ! Background time for DI referenced to nit000
       nitiaustr_r = nitiaustr + nit000 - 1  ! Start of IAU interval referenced to nit000
       nitiaufin_r = nitiaufin + nit000 - 1  ! End of IAU interval referenced to nit000
+      nitavgbkg_r = nitavgbkg + nit000 - 1  ! Averaging period referenced to nit000
 
       iiauper = nitiaufin_r - nitiaustr_r + 1  ! IAU interval length
       icycper = nitend      - nit000      + 1  ! Cycle interval length
@@ -185,6 +208,7 @@ CONTAINS
       CALL calc_date( nit000, nitdin_r   , ndate0, iitdin_date    )     ! Background time for DI referenced to ndate0
       CALL calc_date( nit000, nitiaustr_r, ndate0, iitiaustr_date )     ! IAU start time referenced to ndate0
       CALL calc_date( nit000, nitiaufin_r, ndate0, iitiaufin_date )     ! IAU end time referenced to ndate0
+      CALL calc_date( nit000, nitavgbkg_r, ndate0, iitavgbkg_date )     ! End of assim bkg averaging period referenced to ndate0
       !
       IF(lwp) THEN
          WRITE(numout,*)
@@ -196,6 +220,7 @@ CONTAINS
          WRITE(numout,*) '       nitdin_r    = ', nitdin_r
          WRITE(numout,*) '       nitiaustr_r = ', nitiaustr_r
          WRITE(numout,*) '       nitiaufin_r = ', nitiaufin_r
+         WRITE(numout,*) '       nitavgbkg_r = ', nitavgbkg_r
          WRITE(numout,*)
          WRITE(numout,*) '   Dates referenced to current cycle:'
          WRITE(numout,*) '       ndastp         = ', ndastp
@@ -205,6 +230,7 @@ CONTAINS
          WRITE(numout,*) '       iitdin_date    = ', iitdin_date
          WRITE(numout,*) '       iitiaustr_date = ', iitiaustr_date
          WRITE(numout,*) '       iitiaufin_date = ', iitiaufin_date
+         WRITE(numout,*) '       iitavgbkg_date = ', iitavgbkg_date
       ENDIF
 
       IF ( nacc /= 0 ) &
@@ -247,6 +273,11 @@ CONTAINS
       IF ( ( nitdin_r < nit000 - 1 ).OR.( nitdin_r > nitend ) ) &
          & CALL ctl_stop( ' nitdin :',  &
          &                ' Background time step for Direct Initialization is outside', &
+         &                ' the cycle interval')
+
+      IF ( nitavgbkg_r > nitend ) &
+         & CALL ctl_stop( ' nitavgbkg_r :',  &
+         &                ' Assim bkg averaging period is outside', &
          &                ' the cycle interval')
 
       IF ( nstop > 0 ) RETURN       ! if there are any errors then go no further

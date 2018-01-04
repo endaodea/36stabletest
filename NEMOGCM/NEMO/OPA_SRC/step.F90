@@ -335,6 +335,9 @@ CONTAINS
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! Dynamics                                    (tsa used as workspace)
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+      IF( ln_bkgwri )        CALL asm_bkg_wri( kstp )     ! output background fields
+
       IF( lk_dynspg_ts   )  THEN
                                                              ! revert to previously computed momentum tendencies
                                                              ! (not using ua, va as temporary arrays during tracers' update could avoid that)
@@ -353,7 +356,6 @@ CONTAINS
 
         IF(  lk_asminc .AND. ln_asmiau .AND. &
            & ln_dyninc      )  CALL dyn_asm_inc( kstp )     ! apply dynamics assimilation increment
-        IF( ln_bkgwri )        CALL asm_bkg_wri( kstp )     ! output background fields
         IF( ln_neptsimp )      CALL dyn_nept_cor( kstp )    ! subtract Neptune velocities (simplified)
         IF( lk_bdy          )  CALL bdy_dyn3d_dmp(kstp )    ! bdy damping trends
                                CALL dyn_adv( kstp )         ! advection (vector or flux form)

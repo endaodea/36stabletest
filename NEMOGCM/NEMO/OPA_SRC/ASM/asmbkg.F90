@@ -49,10 +49,21 @@ MODULE asmbkg
 #if defined key_lim3
    USE ice
 #endif
+   USE asminc, ONLY: ln_avgbkg
    IMPLICIT NONE
    PRIVATE
    
    PUBLIC   asm_bkg_wri   !: Write out the background state
+
+  !! * variables for calculating time means
+   REAL(wp),SAVE, ALLOCATABLE,   DIMENSION(:,:,:) ::   tn_tavg  , sn_tavg  
+   REAL(wp),SAVE, ALLOCATABLE,   DIMENSION(:,:,:) ::   un_tavg  , vn_tavg
+   REAL(wp),SAVE, ALLOCATABLE,   DIMENSION(:,:,:) ::   avt_tavg
+#if defined key_zdfgls || key_zdftke
+   REAL(wp),SAVE, ALLOCATABLE,   DIMENSION(:,:,:) ::   en_tavg
+#endif
+   REAL(wp),SAVE, ALLOCATABLE,   DIMENSION(:,:)   ::   sshn_tavg
+   REAL(wp),SAVE :: numtimes_tavg     ! No of times to average over
 
    !!----------------------------------------------------------------------
    !! NEMO/OPA 3.3 , NEMO Consortium (2010)
@@ -80,11 +91,75 @@ CONTAINS
       LOGICAL :: llok          ! Check if file exists
       INTEGER :: inum          ! File unit number
       REAL(wp) :: zdate        ! Date
+      INTEGER :: ierror
       !!-----------------------------------------------------------------------
 
-      !                                !-------------------------------------------
-      IF( kt == nitbkg_r ) THEN        ! Write out background at time step nitbkg_r
-         !                             !-----------------------------------========
+      ! If creating an averaged assim bkg, initialise on first timestep
+      IF ( ln_avgbkg .AND. kt == ( nn_it000 - 1) ) THEN
+         ! Allocate memory 
+         ALLOCATE( tn_tavg(jpi,jpj,jpk), STAT=ierror )
+         IF( ierror > 0 ) THEN
+            CALL ctl_stop( 'asm_wri_bkg: unable to allocate tn_tavg' )   ;   RETURN
+         ENDIF
+         tn_tavg(:,:,:)=0
+         ALLOCATE( sn_tavg(jpi,jpj,jpk), STAT=ierror )
+         IF( ierror > 0 ) THEN
+            CALL ctl_stop( 'asm_wri_bkg: unable to allocate sn_tavg' )   ;   RETURN
+         ENDIF
+         sn_tavg(:,:,:)=0
+         ALLOCATE( un_tavg(jpi,jpj,jpk), STAT=ierror )
+         IF( ierror > 0 ) THEN
+            CALL ctl_stop( 'asm_wri_bkg: unable to allocate un_tavg' )   ;   RETURN
+         ENDIF
+         un_tavg(:,:,:)=0
+         ALLOCATE( vn_tavg(jpi,jpj,jpk), STAT=ierror )
+         IF( ierror > 0 ) THEN
+            CALL ctl_stop( 'asm_wri_bkg: unable to allocate vn_tavg' )   ;   RETURN
+         ENDIF
+         vn_tavg(:,:,:)=0
+         ALLOCATE( sshn_tavg(jpi,jpj), STAT=ierror )
+         IF( ierror > 0 ) THEN
+            CALL ctl_stop( 'asm_wri_bkg: unable to allocate sshn_tavg' )   ;   RETURN
+         ENDIF
+         sshn_tavg(:,:)=0
+#if defined key_zdftke
+         ALLOCATE( en_tavg(jpi,jpj,jpk), STAT=ierror )
+         IF( ierror > 0 ) THEN
+            CALL ctl_stop( 'asm_wri_bkg: unable to allocate en_tavg' )   ;   RETURN
+         ENDIF
+         en_tavg(:,:,:)=0
+#endif
+         ALLOCATE( avt_tavg(jpi,jpj,jpk), STAT=ierror )
+         IF( ierror > 0 ) THEN
+            CALL ctl_stop( 'asm_wri_bkg: unable to allocate avt_tavg' )   ;   RETURN
+         ENDIF
+         avt_tavg(:,:,:)=0
+         
+         numtimes_tavg = REAL ( nitavgbkg_r -  nn_it000 + 1 )
+      ENDIF   
+
+      ! If creating an averaged assim bkg, sum the contribution every timestep
+      IF ( ln_avgbkg ) THEN 
+         IF (lwp) THEN
+              WRITE(numout,*) 'asm_wri_bkg : Summing assim bkg fields at timestep ',kt
+              WRITE(numout,*) '~~~~~~~~~~~~ '
+         ENDIF
+
+         tn_tavg(:,:,:)        = tn_tavg(:,:,:) + tsn(:,:,:,jp_tem) / numtimes_tavg
+         sn_tavg(:,:,:)        = sn_tavg(:,:,:) + tsn(:,:,:,jp_sal) / numtimes_tavg
+         sshn_tavg(:,:)        = sshn_tavg(:,:) + sshn (:,:) / numtimes_tavg
+         un_tavg(:,:,:)        = un_tavg(:,:,:) + un(:,:,:) / numtimes_tavg
+         vn_tavg(:,:,:)        = vn_tavg(:,:,:) + vn(:,:,:) / numtimes_tavg
+         avt_tavg(:,:,:)        = avt_tavg(:,:,:) + avt(:,:,:) / numtimes_tavg
+#if defined key_zdftke
+         en_tavg(:,:,:)       = en_tavg(:,:,:) + en(:,:,:) / numtimes_tavg
+#endif
+      ENDIF
+     
+
+      ! Write out background at time step nitbkg_r or nitavgbkg_r
+      IF ( ( .NOT. ln_avgbkg .AND. (kt == nitbkg_r) ) .OR. &
+      &          ( ln_avgbkg .AND. (kt == nitavgbkg_r) ) ) THEN
          !
          WRITE(cl_asmbkg, FMT='(A,".nc")' ) TRIM( c_asmbkg )
          cl_asmbkg = TRIM( cl_asmbkg )
@@ -96,31 +171,58 @@ CONTAINS
             !                                      ! Define the output file        
             CALL iom_open( c_asmbkg, inum, ldwrt = .TRUE., kiolib = jprstlib)
             !
-            IF( nitbkg_r == nit000 - 1 ) THEN      ! Treat special case when nitbkg = 0
-               zdate = REAL( ndastp )
+            !
+            ! Write the information
+            IF ( ln_avgbkg ) THEN
+               IF( nitavgbkg_r == nit000 - 1 ) THEN      ! Treat special case when nitavgbkg = 0
+                  zdate = REAL( ndastp )
 #if defined key_zdftke
-               ! lk_zdftke=T :   Read turbulent kinetic energy ( en )
-               IF(lwp) WRITE(numout,*) ' Reading TKE (en) from restart...'
-               CALL tke_rst( nit000, 'READ' )               ! lk_zdftke=T :   Read turbulent kinetic energy ( en )
+                  ! lk_zdftke=T :   Read turbulent kinetic energy ( en )
+                  IF(lwp) WRITE(numout,*) ' Reading TKE (en) from restart...'
+                  CALL tke_rst( nit000, 'READ' )               ! lk_zdftke=T :   Read turbulent kinetic energy ( en )
 
 #endif
-            ELSE
-               zdate = REAL( ndastp )
-            ENDIF
-            !
-            !                                      ! Write the information
-            CALL iom_rstput( kt, nitbkg_r, inum, 'rdastp' , zdate             )
-            CALL iom_rstput( kt, nitbkg_r, inum, 'un'     , un                )
-            CALL iom_rstput( kt, nitbkg_r, inum, 'vn'     , vn                )
-            CALL iom_rstput( kt, nitbkg_r, inum, 'tn'     , tsn(:,:,:,jp_tem) )
-            CALL iom_rstput( kt, nitbkg_r, inum, 'sn'     , tsn(:,:,:,jp_sal) )
-            CALL iom_rstput( kt, nitbkg_r, inum, 'sshn'   , sshn              )
+               ELSE
+                  zdate = REAL( ndastp )
+               ENDIF
+               CALL iom_rstput( kt, nitavgbkg_r, inum, 'rdastp' , zdate   )
+               CALL iom_rstput( kt, nitavgbkg_r, inum, 'un'     , un_tavg )
+               CALL iom_rstput( kt, nitavgbkg_r, inum, 'vn'     , vn_tavg )
+               CALL iom_rstput( kt, nitavgbkg_r, inum, 'tn'     , tn_tavg )
+               CALL iom_rstput( kt, nitavgbkg_r, inum, 'sn'     , sn_tavg )
+               CALL iom_rstput( kt, nitavgbkg_r, inum, 'sshn'   , sshn_tavg)
 #if defined key_zdftke
-            CALL iom_rstput( kt, nitbkg_r, inum, 'en'     , en                )
+               CALL iom_rstput( kt, nitavgbkg_r, inum, 'en'     , en_tavg )
 #endif
-            CALL iom_rstput( kt, nitbkg_r, inum, 'gcx'    , gcx               )
-            !
+               CALL iom_rstput( kt, nitavgbkg_r, inum, 'avt'    , avt_tavg)
+               !
+            ELSE
+               IF( nitbkg_r == nit000 - 1 ) THEN      ! Treat special case when nitbkg = 0
+                  zdate = REAL( ndastp )
+#if defined key_zdftke
+                  ! lk_zdftke=T :   Read turbulent kinetic energy ( en )
+                  IF(lwp) WRITE(numout,*) ' Reading TKE (en) from restart...'
+                  CALL tke_rst( nit000, 'READ' )               ! lk_zdftke=T :   Read turbulent kinetic energy ( en )
+
+#endif
+               ELSE
+                  zdate = REAL( ndastp )
+               ENDIF
+               CALL iom_rstput( kt, nitbkg_r, inum, 'rdastp' , zdate   )
+               CALL iom_rstput( kt, nitbkg_r, inum, 'un'     , un                )
+               CALL iom_rstput( kt, nitbkg_r, inum, 'vn'     , vn                )
+               CALL iom_rstput( kt, nitbkg_r, inum, 'tn'     , tsn(:,:,:,jp_tem) )
+               CALL iom_rstput( kt, nitbkg_r, inum, 'sn'     , tsn(:,:,:,jp_sal) )
+               CALL iom_rstput( kt, nitbkg_r, inum, 'sshn'   , sshn              )
+#if defined key_zdftke
+               CALL iom_rstput( kt, nitbkg_r, inum, 'en'     , en                )
+#endif
+               CALL iom_rstput( kt, nitbkg_r, inum, 'avt'    , avt               )
+               !
+            ENDIF
+            
             CALL iom_close( inum )
+
          ENDIF
          !
       ENDIF

@@ -28,6 +28,7 @@ MODULE asmpar
    INTEGER, PUBLIC :: nitiaustr_r   !: IAU starting time step referenced to nit000
    INTEGER, PUBLIC :: nitiaufin_r   !: IAU final time step referenced to nit000
    INTEGER, PUBLIC :: nittrjfrq     !: Frequency of trajectory output for 4D-VAR
+   INTEGER, PUBLIC :: nitavgbkg_r   !: Averaging period for assim bkg referenced to nit000
 
    !!----------------------------------------------------------------------
    !! NEMO/OPA 3.3 , NEMO Consortium (2010)

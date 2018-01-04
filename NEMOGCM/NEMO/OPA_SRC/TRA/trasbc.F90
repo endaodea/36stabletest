@@ -33,6 +33,9 @@ MODULE trasbc
    USE wrk_nemo        ! Memory Allocation
    USE timing          ! Timing
    USE eosbn2
+#if defined key_asminc   
+   USE asminc          ! Assimilation increment
+#endif
 
    IMPLICIT NONE
    PRIVATE
@@ -278,6 +281,25 @@ CONTAINS
             END DO  
          END DO  
       ENDIF
+
+#if defined key_asminc
+! WARNING: THIS MAY WELL NOT BE REQUIRED - WE DON'T WANT TO CHANGE T&S BUT THIS MAY COMPENSATE ANOTHER TERM...
+! Rate of change in e3t for each level is ssh_iau*e3t_0/ht_0
+! Contribution to tsa should be rate of change in level / per m of ocean? (hence the division by fse3t_n)
+      IF( ln_sshinc ) THEN         ! input of heat and salt due to assimilation
+         DO jj = 2, jpj 
+            DO ji = fs_2, fs_jpim1
+               zdep = ssh_iau(ji,jj) / ( ht_0(ji,jj) + 1.0 - ssmask(ji, jj) )
+               DO jk = 1, jpkm1
+                  tsa(ji,jj,jk,jp_tem) = tsa(ji,jj,jk,jp_tem)   &
+                                        &            + tsn(ji,jj,jk,jp_tem) * zdep * ( e3t_0(ji,jj,jk) / fse3t_n(ji,jj,jk) )
+                  tsa(ji,jj,jk,jp_sal) = tsa(ji,jj,jk,jp_sal)   &
+                                        &            + tsn(ji,jj,jk,jp_sal) * zdep * ( e3t_0(ji,jj,jk) / fse3t_n(ji,jj,jk) )
+               END DO
+            END DO  
+         END DO  
+      ENDIF
+#endif
  
       IF( l_trdtra )   THEN                      ! send trends for further diagnostics
          ztrdt(:,:,:) = tsa(:,:,:,jp_tem) - ztrdt(:,:,:)

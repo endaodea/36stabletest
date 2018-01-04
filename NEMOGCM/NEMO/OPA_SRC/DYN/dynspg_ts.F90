@@ -45,9 +45,6 @@ MODULE dynspg_ts
 #if defined key_agrif
    USE agrif_opa_interp ! agrif
 #endif
-#if defined key_asminc   
-   USE asminc          ! Assimilation increment
-#endif
 
    IMPLICIT NONE
    PRIVATE
@@ -461,12 +458,6 @@ CONTAINS
          zssh_frc(:,:) = zraur * z1_2 * (  emp(:,:) + emp_b(:,:) - rnf(:,:) - rnf_b(:,:)   &
                 &                        + fwfisf(:,:) + fwfisf_b(:,:)                     )
       ENDIF
-#if defined key_asminc
-      !                                         ! Include the IAU weighted SSH increment
-      IF( lk_asminc .AND. ln_sshinc .AND. ln_asmiau ) THEN
-         zssh_frc(:,:) = zssh_frc(:,:) - ssh_iau(:,:)
-      ENDIF
-#endif
       !                                   !* Fill boundary data arrays for AGRIF
       !                                   ! ------------------------------------
 #if defined key_agrif

@@ -73,7 +73,7 @@ CONTAINS
       REAL(wp), POINTER, DIMENSION(:,:  ) ::  zhdiv
       INTEGER, INTENT(in) ::   kt                      ! time step
       ! 
-      INTEGER             ::   jk                      ! dummy loop indice
+      INTEGER             ::   ji, jj, jk              ! dummy loop indices
       REAL(wp)            ::   z2dt, z1_rau0           ! local scalars
       !!----------------------------------------------------------------------
       !
@@ -93,6 +93,21 @@ CONTAINS
       !
       z2dt = 2._wp * rdt                              ! set time step size (Euler/Leapfrog)
       IF( neuler == 0 .AND. kt == nit000 )   z2dt = rdt
+
+#if defined key_asminc
+      !                                                ! Include the IAU weighted SSH increment
+      IF( lk_asminc .AND. ln_sshinc .AND. ln_asmiau ) THEN
+         CALL ssh_asm_inc( kt )
+#if defined key_vvl
+! Don't directly adjust ssh but change hdivn at all levels instead
+! In trasbc also add in the heat and salt content associated with these changes at each level  
+        DO jk = 1, jpkm1                                 
+                 hdivn(:,:,jk) = hdivn(:,:,jk) - ( ssh_iau(:,:) / ( ht_0(:,:) + 1.0 - ssmask(:,:) ) ) * ( e3t_0(:,:,jk) / fse3t_n(:,:,jk) ) * tmask(:,:,jk) 
+        END DO
+        CALL lbc_lnk( hdivn, 'T', 1. ) ! Not sure that's necessary
+      ENDIF
+#endif
+#endif
 
       !                                           !------------------------------!
       !                                           !   After Sea Surface Height   !
@@ -120,14 +135,6 @@ CONTAINS
          CALL bdy_ssh( ssha ) ! Duplicate sea level across open boundaries
       ENDIF
 #endif
-#endif
-
-#if defined key_asminc
-      !                                                ! Include the IAU weighted SSH increment
-      IF( lk_asminc .AND. ln_sshinc .AND. ln_asmiau ) THEN
-         CALL ssh_asm_inc( kt )
-         ssha(:,:) = ssha(:,:) + z2dt * ssh_iau(:,:)
-      ENDIF
 #endif
 
       !                                           !------------------------------!

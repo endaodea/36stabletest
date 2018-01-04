@@ -26,8 +26,10 @@ MODULE zdfmxl
    IMPLICIT NONE
    PRIVATE
 
+   PUBLIC   zdf_mxl_tref  ! called by asminc.F90
    PUBLIC   zdf_mxl       ! called by step.F90
 
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   hmld_tref  !: mixed layer depth at t-points - temperature criterion [m]
    INTEGER , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   nmln    !: number of level in the mixed layer (used by TOP)
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   hmld    !: mixing layer depth (turbocline)      [m]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   hmlp    !: mixed layer depth  (rho=rho0+zdcrit) [m]
@@ -77,12 +79,56 @@ CONTAINS
         &          htc_mld(jpi,jpj),                                                                    &
         &          ll_found(jpi,jpj), ll_belowml(jpi,jpj,jpk), STAT= zdf_mxl_alloc )
          !
+         ALLOCATE(hmld_tref(jpi,jpj))
          IF( lk_mpp             )   CALL mpp_sum ( zdf_mxl_alloc )
          IF( zdf_mxl_alloc /= 0 )   CALL ctl_warn('zdf_mxl_alloc: failed to allocate arrays.')
          !
       ENDIF
    END FUNCTION zdf_mxl_alloc
 
+
+   SUBROUTINE zdf_mxl_tref()
+      !!----------------------------------------------------------------------
+      !!                  ***  ROUTINE zdf_mxl_tref  ***
+      !!                   
+      !! ** Purpose :   Compute the mixed layer depth with temperature criteria.
+      !!
+      !! ** Method  :   The temperature-defined mixed layer depth is required
+      !!                   when assimilating SST in a 2D analysis. 
+      !!
+      !! ** Action  :   hmld_tref
+      !!----------------------------------------------------------------------
+      !
+      INTEGER  ::   ji, jj, jk   ! dummy loop indices
+      REAL(wp) ::   t_ref               ! Reference temperature  
+      REAL(wp) ::   temp_c = 0.2        ! temperature criterion for mixed layer depth  
+      !!----------------------------------------------------------------------
+      !
+      ! Initialise array
+      IF( zdf_mxl_alloc() /= 0 )   CALL ctl_stop( 'STOP', 'zdf_mxl_tref : unable to allocate arrays' )
+      
+      !For the AMM model assimiation uses a temperature based mixed layer depth  
+      !This is defined here  
+      DO jj = 1, jpj  
+         DO ji = 1, jpi  
+           hmld_tref(ji,jj)=fsdept(ji,jj,1  )   
+           IF(ssmask(ji,jj) > 0.)THEN  
+             t_ref=tsn(ji,jj,1,jp_tem) 
+             DO jk=2,jpk  
+               IF(ssmask(ji,jj)==0.)THEN  
+                  hmld_tref(ji,jj)=fsdept(ji,jj,jk )  
+                  EXIT  
+               ELSEIF( ABS(tsn(ji,jj,jk,jp_tem)-t_ref) < temp_c)THEN  
+                  hmld_tref(ji,jj)=fsdept(ji,jj,jk )  
+               ELSE  
+                  EXIT  
+               ENDIF  
+             ENDDO  
+           ENDIF  
+         ENDDO  
+      ENDDO
+
+   END SUBROUTINE zdf_mxl_tref
 
    SUBROUTINE zdf_mxl( kt )
       !!----------------------------------------------------------------------

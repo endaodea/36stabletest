@@ -479,7 +479,13 @@ CONTAINS
       ENDIF
 
       !                                     ! Assimilation increments
-      IF( lk_asminc     )   CALL asm_inc_init   ! Initialize assimilation increments
+      IF( lk_asminc ) THEN 
+#if defined key_shelf 
+         CALL  zdf_mxl_tref()     ! Initialization of hmld_tref
+#endif 
+         CALL asm_inc_init     ! Initialize assimilation increments 
+      ENDIF
+
       IF(lwp) WRITE(numout,*) 'Euler time step switch is ', neuler
                             CALL dia_tmb_init  ! TMB outputs
                             CALL dia_25h_init  ! 25h mean  outputs

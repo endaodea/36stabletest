@@ -39,6 +39,18 @@ MODULE asminc
    USE ice_2            ! LIM2
 #endif
    USE sbc_oce          ! Surface boundary condition variables.
+   USE zdfmxl, ONLY :  &  
+   &  hmld_tref,       &   
+#if defined key_karaml
+   &  hmld_kara,       &
+   &  ln_kara,         &
+#endif   
+   &  hmld,            & 
+   &  hmlp,            &
+   &  hmlpt
+#if defined key_bdy 
+   USE bdy_oce, ONLY: bdytmask  
+#endif  
 
    IMPLICIT NONE
    PRIVATE
@@ -89,6 +101,13 @@ MODULE asminc
    REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   ssh_bkg, ssh_bkginc   ! Background sea surface height and its increment
    REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   seaice_bkginc         ! Increment to the background sea ice conc
 
+   INTEGER :: mld_choice        = 4   !: choice of mld criteria to use for physics assimilation
+                                      !: 1) hmld      - Turbocline/mixing depth                           [W points]
+                                      !: 2) hmlp      - Density criterion (0.01 kg/m^3 change from 10m)   [W points]
+                                      !: 3) hmld_kara - Kara MLD                                          [Interpolated]
+                                      !: 4) hmld_tref - Temperature criterion (0.2 K change from surface) [T points]
+
+
    !! * Substitutions
 #  include "domzgr_substitute.h90"
 #  include "ldfdyn_substitute.h90"
@@ -120,6 +139,7 @@ CONTAINS
       INTEGER :: iitdin_date     ! Date YYYYMMDD of background time step for DI
       INTEGER :: iitiaustr_date  ! Date YYYYMMDD of IAU interval start time step
       INTEGER :: iitiaufin_date  ! Date YYYYMMDD of IAU interval final time step
+      INTEGER :: isurfstat       ! Local integer for status of reading surft variable
       INTEGER :: iitavgbkg_date  ! Date YYYYMMDD of end of assim bkg averaging period
       !
       REAL(wp) :: znorm        ! Normalization factor for IAU weights
@@ -129,13 +149,22 @@ CONTAINS
       REAL(wp) :: zdate_bkg    ! Date in background state file for DI
       REAL(wp) :: zdate_inc    ! Time axis in increments file
       !
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) :: & 
+          &       t_bkginc_2d  ! file for reading in 2D  
+      !                        ! temperature increments 
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) :: & 
+          &       z_mld     ! Mixed layer depth 
+          
       REAL(wp), POINTER, DIMENSION(:,:) ::   hdiv   ! 2D workspace
+      !
+      LOGICAL :: lk_surft      ! Logical: T => Increments file contains surft variable 
+                               !               so only apply surft increments.
       !!
       NAMELIST/nam_asminc/ ln_bkgwri, ln_avgbkg,                           &
          &                 ln_trainc, ln_dyninc, ln_sshinc,                &
          &                 ln_asmdin, ln_asmiau,                           &
          &                 nitbkg, nitdin, nitiaustr, nitiaufin, niaufn,   &
-         &                 ln_salfix, salfixmin, nn_divdmp, nitavgbkg
+         &                 ln_salfix, salfixmin, nn_divdmp, nitavgbkg, mld_choice
       !!----------------------------------------------------------------------
 
       !-----------------------------------------------------------------------
@@ -192,6 +221,7 @@ CONTAINS
          WRITE(numout,*) '      Type of IAU weighting function                           niaufn    = ', niaufn
          WRITE(numout,*) '      Logical switch for ensuring that the sa > salfixmin      ln_salfix = ', ln_salfix
          WRITE(numout,*) '      Minimum salinity after applying the increments           salfixmin = ', salfixmin
+         WRITE(numout,*) '      Choice of MLD for physics assimilation                  mld_choice = ', mld_choice
       ENDIF
 
       nitbkg_r    = nitbkg    + nit000 - 1  ! Background time referenced to nit000
@@ -357,22 +387,28 @@ CONTAINS
       ! Allocate and initialize the increment arrays
       !--------------------------------------------------------------------
 
-      ALLOCATE( t_bkginc(jpi,jpj,jpk) )
-      ALLOCATE( s_bkginc(jpi,jpj,jpk) )
-      ALLOCATE( u_bkginc(jpi,jpj,jpk) )
-      ALLOCATE( v_bkginc(jpi,jpj,jpk) )
-      ALLOCATE( ssh_bkginc(jpi,jpj)   )
-      ALLOCATE( seaice_bkginc(jpi,jpj))
+      IF ( ln_trainc ) THEN
+         ALLOCATE( t_bkginc(jpi,jpj,jpk) )
+         ALLOCATE( s_bkginc(jpi,jpj,jpk) )
+         t_bkginc(:,:,:) = 0.0
+         s_bkginc(:,:,:) = 0.0
+      ENDIF
+      IF ( ln_dyninc ) THEN 
+         ALLOCATE( u_bkginc(jpi,jpj,jpk) )
+         ALLOCATE( v_bkginc(jpi,jpj,jpk) )
+         u_bkginc(:,:,:) = 0.0
+         v_bkginc(:,:,:) = 0.0
+      ENDIF
+      IF ( ln_sshinc ) THEN
+         ALLOCATE( ssh_bkginc(jpi,jpj)   )
+         ssh_bkginc(:,:) = 0.0
+      ENDIF
+      IF ( ln_seaiceinc ) THEN 
+         ALLOCATE( seaice_bkginc(jpi,jpj))
+         seaice_bkginc(:,:) = 0.0
+      ENDIF
 #if defined key_asminc
       ALLOCATE( ssh_iau(jpi,jpj)      )
-#endif
-      t_bkginc(:,:,:) = 0.0
-      s_bkginc(:,:,:) = 0.0
-      u_bkginc(:,:,:) = 0.0
-      v_bkginc(:,:,:) = 0.0
-      ssh_bkginc(:,:) = 0.0
-      seaice_bkginc(:,:) = 0.0
-#if defined key_asminc
       ssh_iau(:,:)    = 0.0
 #endif
       IF ( ( ln_trainc ).OR.( ln_dyninc ).OR.( ln_sshinc ).OR.( ln_seaiceinc ) ) THEN
@@ -408,15 +444,74 @@ CONTAINS
             &                ' not agree with Direct Initialization time' )
 
          IF ( ln_trainc ) THEN   
-            CALL iom_get( inum, jpdom_autoglo, 'bckint', t_bkginc, 1 )
-            CALL iom_get( inum, jpdom_autoglo, 'bckins', s_bkginc, 1 )
-            ! Apply the masks
-            t_bkginc(:,:,:) = t_bkginc(:,:,:) * tmask(:,:,:)
-            s_bkginc(:,:,:) = s_bkginc(:,:,:) * tmask(:,:,:)
-            ! Set missing increments to 0.0 rather than 1e+20
-            ! to allow for differences in masks
-            WHERE( ABS( t_bkginc(:,:,:) ) > 1.0e+10 ) t_bkginc(:,:,:) = 0.0
-            WHERE( ABS( s_bkginc(:,:,:) ) > 1.0e+10 ) s_bkginc(:,:,:) = 0.0
+
+            !Test if the increments file contains the surft variable.
+            isurfstat = iom_varid( inum, 'bckinsurft', ldstop = .FALSE. )
+            IF ( isurfstat == -1 ) THEN
+               lk_surft = .FALSE.
+            ELSE
+               lk_surft = .TRUE.
+               CALL ctl_warn( ' Applying 2D temperature increment to bottom of ML: ', &
+            &                 ' bckinsurft found in increments file.' )
+            ENDIF             
+
+            IF (lk_surft) THEN 
+                
+               ALLOCATE(z_mld(jpi,jpj)) 
+               SELECT CASE(mld_choice) 
+               CASE(1) 
+                  z_mld = hmld 
+               CASE(2) 
+                  z_mld = hmlp 
+               CASE(3) 
+#if defined key_karaml
+                  IF ( ln_kara ) THEN
+                     z_mld = hmld_kara
+                  ELSE
+                     CALL ctl_stop("Kara mixed layer not calculated as ln_kara=.false.")
+                  ENDIF
+#else
+                  CALL ctl_stop("Kara mixed layer not defined in current version of NEMO")  ! JW: Safety feature, should be removed
+                                                                                            ! once the Kara mixed layer is available 
+#endif
+               CASE(4) 
+                  z_mld = hmld_tref 
+               END SELECT       
+                      
+               ALLOCATE( t_bkginc_2d(jpi,jpj) ) 
+               CALL iom_get( inum, jpdom_autoglo, 'bckinsurft', t_bkginc_2d, 1) 
+#if defined key_bdy                
+               DO jk = 1,jpkm1 
+                  WHERE( z_mld(:,:) > fsdepw(:,:,jk) ) 
+                     t_bkginc(:,:,jk) = t_bkginc_2d(:,:) * 0.5 * &
+                     &       ( 1 + cos( (fsdept(:,:,jk)/z_mld(:,:) ) * rpi ) )
+                     
+                     t_bkginc(:,:,jk) = t_bkginc(:,:,jk) * bdytmask(:,:) 
+                  ELSEWHERE 
+                     t_bkginc(:,:,jk) = 0. 
+                  ENDWHERE 
+               ENDDO 
+#else 
+               t_bkginc(:,:,:) = 0. 
+#endif                
+               s_bkginc(:,:,:) = 0. 
+                
+               DEALLOCATE(z_mld, t_bkginc_2d) 
+            
+            ELSE 
+               
+               CALL iom_get( inum, jpdom_autoglo, 'bckint', t_bkginc, 1 )
+               CALL iom_get( inum, jpdom_autoglo, 'bckins', s_bkginc, 1 )
+               ! Apply the masks
+               t_bkginc(:,:,:) = t_bkginc(:,:,:) * tmask(:,:,:)
+               s_bkginc(:,:,:) = s_bkginc(:,:,:) * tmask(:,:,:)
+               ! Set missing increments to 0.0 rather than 1e+20
+               ! to allow for differences in masks
+               WHERE( ABS( t_bkginc(:,:,:) ) > 1.0e+10 ) t_bkginc(:,:,:) = 0.0
+               WHERE( ABS( s_bkginc(:,:,:) ) > 1.0e+10 ) s_bkginc(:,:,:) = 0.0
+         
+            ENDIF
+
          ENDIF
 
          IF ( ln_dyninc ) THEN   

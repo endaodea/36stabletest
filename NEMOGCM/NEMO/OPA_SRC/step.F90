@@ -374,7 +374,6 @@ CONTAINS
 
                                CALL ssh_swp( kstp )         ! swap of sea surface height
       IF( lk_vvl           )   CALL dom_vvl_sf_swp( kstp )  ! swap of vertical scale factors
-      !
 
 #if defined key_agrif
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -404,7 +403,7 @@ CONTAINS
          IF(lwm) CALL FLUSH    ( numond )     ! flush output namelist oce
          IF( lwm.AND.numoni /= -1 ) CALL FLUSH    ( numoni )     ! flush output namelist ice
       ENDIF
-      IF( lrst_oce         )   CALL rst_write( kstp )       ! write output ocean restart file
+      IF( lrst_oce         )   CALL rst_write    ( kstp )   ! write output ocean restart file
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! Coupled mode

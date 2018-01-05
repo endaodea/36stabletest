@@ -120,6 +120,11 @@ CONTAINS
 #if defined key_bdy 
       IF( lk_bdy )   CALL bdy_tra( kt )  ! BDY open boundaries
 #endif
+ 
+      ! set time step size (Euler/Leapfrog)
+      IF( neuler == 0 .AND. kt == nit000 ) THEN   ;   r2dtra(:) =     rdttra(:)      ! at nit000             (Euler)
+      ELSEIF( kt <= nit000 + 1 )           THEN   ;   r2dtra(:) = 2._wp* rdttra(:)      ! at nit000 or nit000+1 (Leapfrog)
+      ENDIF
 
 #if ( ! defined key_lim3 && ! defined key_lim2 && ! key_cice )
       IF ( kt == nit000 ) warn_1=0
@@ -149,11 +154,6 @@ CONTAINS
          warn_1=1
       ENDIF
 #endif
-
-      ! set time step size (Euler/Leapfrog)
-      IF( neuler == 0 .AND. kt == nit000 ) THEN   ;   r2dtra(:) =     rdttra(:)      ! at nit000             (Euler)
-      ELSEIF( kt <= nit000 + 1 )           THEN   ;   r2dtra(:) = 2._wp* rdttra(:)      ! at nit000 or nit000+1 (Leapfrog)
-      ENDIF
 
       ! trends computation initialisation
       IF( l_trdtra )   THEN                    ! store now fields before applying the Asselin filter

@@ -1017,6 +1017,8 @@ CONTAINS
                DEALLOCATE( ssh_bkginc )
             ENDIF
 
+         ELSE
+            ssh_iau(:,:) = 0._wp
          ENDIF
 
       ELSEIF ( ln_asmdin ) THEN

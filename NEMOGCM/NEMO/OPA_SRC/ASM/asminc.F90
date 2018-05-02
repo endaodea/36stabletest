@@ -1017,8 +1017,10 @@ CONTAINS
                DEALLOCATE( ssh_bkginc )
             ENDIF
 
+#if defined key_asminc
          ELSE
             ssh_iau(:,:) = 0._wp
+#endif
          ENDIF
 
       ELSEIF ( ln_asmdin ) THEN

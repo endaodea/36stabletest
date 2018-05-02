@@ -595,6 +595,9 @@ CONTAINS
             ENDIF
             IF( i_cnt_25h .EQ. 25 .AND.  MOD( kt, i_steps*24) == 0 .AND. kt .NE. nn_it000 ) THEN
                i_cnt_25h = 1 
+               DO jn = 1, nn_mld_diag 
+                     hmld_zint_25h(:,:,jn) = hmld_zint(:,:) 
+               ENDDO 
             ENDIF
          ENDIF
                   

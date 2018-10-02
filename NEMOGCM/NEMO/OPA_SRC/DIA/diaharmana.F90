@@ -658,9 +658,9 @@ CONTAINS
            SUBROUTINE harm_ana_init
            END SUBROUTINE harm_ana_init
            SUBROUTINE harm_ana( kt )
-           END SUBROUTINE harm_ana_init
+           END SUBROUTINE harm_ana
            SUBROUTINE gelim (a,b,x,n)
-           END SUBROUTINE gelim (a,b,x,n)
+           END SUBROUTINE gelim
            
 #endif
 
